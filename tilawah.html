@@ -92,14 +92,19 @@
                 <h2 class="text-xl font-bold text-amber-400">Daftar 30 Peserta OWOJ</h2>
                 <p class="text-xs text-slate-400">Rotasi urutan Juz otomatis bergeser setiap hari Senin pukul 00:00 WIB.</p>
             </div>
-            <div class="flex items-center gap-3">
+            <div class="flex items-center gap-3 flex-wrap">
                 <div class="text-xs bg-slate-800 text-amber-300 font-semibold px-3 py-2 rounded-lg border border-amber-500/20" id="currentWeekBadge">
                     Memuat Periode Pekan...
                 </div>
-                <!-- Tombol khusus Admin (Secara default tersembunyi, muncul jika Admin/Super Admin Sign In) -->
-                <button id="btnManageParticipants" onclick="openManageModal()" class="hidden bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs px-4 py-2 rounded-lg transition shadow-md flex items-center gap-2">
-                    <i class="fa-solid fa-user-plus"></i> Kelola Peserta (Admin)
-                </button>
+                <!-- Tombol Khusus Admin -->
+                <div id="adminActionButtons" class="hidden flex items-center gap-2">
+                    <button id="btnStartOwoj" onclick="triggerStartOwoj()" class="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs px-4 py-2 rounded-lg transition shadow-md flex items-center gap-2">
+                        <i class="fa-solid fa-play"></i> Start Membaca
+                    </button>
+                    <button id="btnManageParticipants" onclick="openManageModal()" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs px-4 py-2 rounded-lg transition shadow-md flex items-center gap-2">
+                        <i class="fa-solid fa-user-plus"></i> Kelola Peserta
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -132,17 +137,10 @@
             <button onclick="closeManageModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
         </div>
         
-        <p class="text-xs text-slate-400">Pilih alumni dari database yang akan didaftarkan sebagai peserta Tilawah OWOJ.</p>
+        <p class="text-xs text-slate-400">Pilih alumni dari database untuk ditambahkan ke daftar urutan peserta Tilawah OWOJ.</p>
 
         <!-- Form Input Pilihan Alumni -->
         <div class="space-y-3">
-            <div>
-                <label class="block text-xs font-semibold text-slate-300 mb-1">Pilih Posisi Slot (1 - 30):</label>
-                <select id="slotSelect" class="w-full bg-slate-800 border border-slate-700 text-white rounded-lg p-2.5 text-sm focus:border-amber-400 outline-none">
-                    <!-- Opsi slot 1-30 di-render via JS -->
-                </select>
-            </div>
-
             <div>
                 <label class="block text-xs font-semibold text-slate-300 mb-1">Pilih Alumni dari Database:</label>
                 <select id="alumniDbSelect" class="w-full bg-slate-800 border border-slate-700 text-white rounded-lg p-2.5 text-sm focus:border-amber-400 outline-none">
@@ -154,6 +152,36 @@
         <div class="flex justify-end gap-2 pt-4 border-t border-slate-800">
             <button onclick="closeManageModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-xs font-bold rounded-lg">Batal</button>
             <button onclick="saveParticipantToSlot()" class="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold rounded-lg shadow-md">Simpan Peserta</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Konfirmasi Report Tilawah -->
+<div id="confirmReportModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/70 backdrop-blur-sm">
+    <div class="w-full max-w-md rounded-2xl bg-[#1e293b] p-6 text-white shadow-2xl border border-slate-700">
+        <h3 class="text-lg font-bold text-yellow-400 mb-2">Konfirmasi Tilawah</h3>
+        <p id="confirmReportText" class="text-slate-300 mb-6">Alhamdulillah, apakah benar surat ini sudah selesai dibaca?</p>
+        
+        <div class="flex justify-end space-x-3">
+            <button id="cancelReportBtn" class="px-4 py-2 rounded-xl bg-slate-700 text-slate-200 hover:bg-slate-600 font-medium transition">Tidak</button>
+            <button id="yesReportBtn" class="px-5 py-2 rounded-xl bg-yellow-500 text-slate-900 hover:bg-yellow-400 font-bold transition">Iya, Selesai</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal / Panel Ucapan Selamat & Kirim WhatsApp -->
+<div id="whatsappModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/70 backdrop-blur-sm">
+    <div class="w-full max-w-lg rounded-2xl bg-[#1e293b] p-6 text-white shadow-2xl border border-slate-700">
+        <h3 class="text-lg font-bold text-green-400 mb-2">🎉 Alhamdulillah! Jazakumullah Khairan</h3>
+        <p class="text-slate-300 text-sm mb-4">Laporan tilawah Anda berhasil dicatat. Silakan salin ucapan di bawah ini untuk dikirim ke grup WhatsApp:</p>
+        
+        <textarea id="waMessageText" rows="5" class="w-full rounded-xl bg-slate-900 p-3 text-sm text-slate-200 border border-slate-700 focus:outline-none focus:border-green-500 mb-4" readonly></textarea>
+        
+        <div class="flex justify-end space-x-3">
+            <button onclick="closeWaModal()" class="px-4 py-2 rounded-xl bg-slate-700 text-slate-200 hover:bg-slate-600 font-medium transition">Tutup</button>
+            <a id="sendWaBtn" href="#" target="_blank" class="px-5 py-2 rounded-xl bg-green-600 text-white hover:bg-green-500 font-bold transition flex items-center space-x-2">
+                <i class="fab fa-whatsapp"></i> <span>Kirim ke WhatsApp</span>
+            </a>
         </div>
     </div>
 </div>
@@ -246,7 +274,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, getDoc, setDoc, onSnapshot, collection, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         const firebaseConfig = {
           apiKey: "AIzaSyBSuusyB8UmVN721It89xqgfxZf8swB6gk",
@@ -275,32 +303,60 @@
                     const docRef = doc(db, "alumni", user.uid);
                     const docSnap = await getDoc(docRef);
 
+                    let namaLengkap = user.displayName || "ALUMNI SMAN 11";
                     let namaPanggilan = user.email ? user.email.split('@')[0] : "ALUMNI";
+                    let email = user.email || "";
+                    let fotoProfile = "";
                     let userRole = "member";
 
                     if (docSnap.exists()) {
                         const data = docSnap.data();
+                        namaLengkap = data.namaLengkap || namaLengkap;
                         namaPanggilan = data.namaPanggilan || namaPanggilan;
+                        fotoProfile = data.foto || "";
                         userRole = data.role || "member";
                     }
 
                     const formattedPanggilan = namaPanggilan.trim().toUpperCase();
+
                     if (targetElement) {
                         targetElement.innerHTML = `<span style="color: #eab308; font-weight: 700;">${formattedPanggilan}</span>`;
                         targetElement.href = "javascript:void(0);";
                     }
 
+                    // 1. Update state mega menu beserta rolenya
+                    if (typeof window.updateMegaMenuState === "function") {
+                        window.updateMegaMenuState(user, {
+                            namaLengkap: namaLengkap,
+                            namaPanggilan: formattedPanggilan,
+                            email: email,
+                            foto: fotoProfile,
+                            role: userRole
+                        });
+                    }
+
+                    // 2. Paksa render ulang Mega Menu agar kotak sign-in berubah menjadi profil super admin
+                    if (typeof window.loadMegaMenu === "function") {
+                        window.loadMegaMenu("login");
+                    }
+
+                    // 3. Inisialisasi dashboard tilawah
                     if (typeof window.initTilawahDashboard === "function") {
                         window.initTilawahDashboard(user, formattedPanggilan);
                     }
                 } catch (error) {
-                    console.error("Gagal memuat auth tilawah:", error);
+                    console.error("Gagal memuat profil navbar tilawah:", error);
                 }
             } else {
                 if (targetElement) {
                     targetElement.innerHTML = "Sign In";
                     targetElement.href = "javascript:void(0);";
                 }
+
+                if (typeof window.updateMegaMenuState === "function") {
+                    window.updateMegaMenuState(null);
+                }
+
                 if (typeof window.initTilawahDashboard === "function") {
                     window.initTilawahDashboard(null);
                 }
