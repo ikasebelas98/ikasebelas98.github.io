@@ -85,38 +85,78 @@
         <div class="max-w-[1920px] mx-auto px-4 py-6">
 
             <!-- TAB 1: PESERTA TILAWAH -->
-            <div id="tab1" class="tab-content hidden">
-                <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-xl">
-                    <div class="flex justify-between items-center mb-6 flex-wrap gap-4">
-                        <div>
-                            <h2 class="text-xl font-bold text-amber-400">Daftar 30 Peserta OWOJ</h2>
-                            <p class="text-xs text-slate-400">Rotasi urutan Juz otomatis bergeser setiap hari Senin pukul 00:00 WIB.</p>
-                        </div>
-                        <div class="text-xs bg-slate-800 text-amber-300 font-semibold px-3 py-1.5 rounded-lg border border-amber-500/20" id="currentWeekBadge">
-                            Memuat Periode Pekan...
-                        </div>
-                    </div>
-
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left text-sm text-slate-300">
-                            <thead class="bg-slate-800/80 text-amber-400 text-xs uppercase tracking-wider">
-                                <tr>
-                                    <th class="p-3.5 rounded-l-lg">No</th>
-                                    <th class="p-3.5">Nama Panggilan</th>
-                                    <th class="p-3.5">Nama Lengkap</th>
-                                    <th class="p-3.5 text-center">Tugas Pekan Ini</th>
-                                    <th class="p-3.5 text-center rounded-r-lg">Status</th>
-                                </tr>
-                            </thead>
-                            <tbody id="participantTableBody" class="divide-y divide-slate-800/50">
-                                <tr>
-                                    <td colspan="5" class="p-8 text-center text-slate-500">Memuat data peserta...</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
+<div id="tab1" class="tab-content hidden">
+    <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-xl">
+        <div class="flex justify-between items-center mb-6 flex-wrap gap-4">
+            <div>
+                <h2 class="text-xl font-bold text-amber-400">Daftar 30 Peserta OWOJ</h2>
+                <p class="text-xs text-slate-400">Rotasi urutan Juz otomatis bergeser setiap hari Senin pukul 00:00 WIB.</p>
             </div>
+            <div class="flex items-center gap-3">
+                <div class="text-xs bg-slate-800 text-amber-300 font-semibold px-3 py-2 rounded-lg border border-amber-500/20" id="currentWeekBadge">
+                    Memuat Periode Pekan...
+                </div>
+                <!-- Tombol khusus Admin (Secara default tersembunyi, muncul jika Admin/Super Admin Sign In) -->
+                <button id="btnManageParticipants" onclick="openManageModal()" class="hidden bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs px-4 py-2 rounded-lg transition shadow-md flex items-center gap-2">
+                    <i class="fa-solid fa-user-plus"></i> Kelola Peserta (Admin)
+                </button>
+            </div>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm text-slate-300">
+                <thead class="bg-slate-800/80 text-amber-400 text-xs uppercase tracking-wider">
+                    <tr>
+                        <th class="p-3.5 rounded-l-lg">No</th>
+                        <th class="p-3.5">Nama Panggilan</th>
+                        <th class="p-3.5">Nama Lengkap</th>
+                        <th class="p-3.5 text-center">Tugas Pekan Ini</th>
+                        <th class="p-3.5 text-center rounded-r-lg">Aksi / Status</th>
+                    </tr>
+                </thead>
+                <tbody id="participantTableBody" class="divide-y divide-slate-800/50">
+                    <tr>
+                         <td colspan="5" class="p-8 text-center text-slate-500">Memuat data peserta...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL POP-UP ADMIN: KELOLA PESERTA TILAWAH -->
+<div id="manageParticipantsModal" class="fixed inset-0 z-[99999] hidden items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+    <div class="bg-slate-900 border border-slate-700 w-full max-w-lg rounded-2xl p-6 space-y-4 shadow-2xl text-slate-100">
+        <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+            <h3 class="font-bold text-amber-400 text-lg">Kelola Peserta OWOJ</h3>
+            <button onclick="closeManageModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
+        </div>
+        
+        <p class="text-xs text-slate-400">Pilih alumni dari database yang akan didaftarkan sebagai peserta Tilawah OWOJ.</p>
+
+        <!-- Form Input Pilihan Alumni -->
+        <div class="space-y-3">
+            <div>
+                <label class="block text-xs font-semibold text-slate-300 mb-1">Pilih Posisi Slot (1 - 30):</label>
+                <select id="slotSelect" class="w-full bg-slate-800 border border-slate-700 text-white rounded-lg p-2.5 text-sm focus:border-amber-400 outline-none">
+                    <!-- Opsi slot 1-30 di-render via JS -->
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-xs font-semibold text-slate-300 mb-1">Pilih Alumni dari Database:</label>
+                <select id="alumniDbSelect" class="w-full bg-slate-800 border border-slate-700 text-white rounded-lg p-2.5 text-sm focus:border-amber-400 outline-none">
+                    <option value="">-- Memuat Alumni --</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="flex justify-end gap-2 pt-4 border-t border-slate-800">
+            <button onclick="closeManageModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-xs font-bold rounded-lg">Batal</button>
+            <button onclick="saveParticipantToSlot()" class="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold rounded-lg shadow-md">Simpan Peserta</button>
+        </div>
+    </div>
+</div>
 
             <!-- TAB 2: ONE WEEK ONE JUZ (GRID 30 JUZ CARD SEPERTI ACCUAN GAMBAR) -->
             <div id="tab2" class="tab-content block">

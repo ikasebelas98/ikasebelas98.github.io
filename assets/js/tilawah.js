@@ -1,8 +1,7 @@
 /* ==========================================
-   OWOJ TILAWAH DASHBOARD ENGINE
+   OWOJ TILAWAH DASHBOARD ENGINE - SYNCED FIXED
 ========================================== */
 
-// DATA MAPPING 114 SURAT BERDASARKAN JUZ
 const QURAN_JUZ_DATA = {
     1: [{ no: 1, name: "Al-Fatihah", ayat: "1 - 7" }, { no: 2, name: "Al-Baqarah", ayat: "1 - 141" }],
     2: [{ no: 2, name: "Al-Baqarah", ayat: "142 - 252" }],
@@ -49,8 +48,7 @@ const QURAN_JUZ_DATA = {
     ]
 };
 
-// HITUNG SELISIH PEKAN SEJAK EPOCH (START DATE: MINGGU 1 OKTOBER 2026)
-const EPOCH_START_DATE = new Date("2026-10-05T00:00:00+07:00"); // Hari Senin Pertama
+const EPOCH_START_DATE = new Date("2026-10-05T00:00:00+07:00");
 
 function getElapsedWeeks() {
     const now = new Date();
@@ -59,16 +57,28 @@ function getElapsedWeeks() {
     return Math.floor(diffTime / (1000 * 60 * 60 * 24 * 7));
 }
 
-// FUNGSI PERGESERAN JUZ OTOMATIS
-function getAssignedJuz(participantIndex) {
+let allDbAlumni = [];
+let assignedParticipants = Array(30).fill(null);
+let currentWeek = getElapsedWeeks() + 1;
+let currentUserRole = "member";
+let cachedAuthUser = null;
+
+// FUNGSI UTAMA PENENTU JUZ BERDASARKAN INDEX SLOT & MINGGU BERJALAN
+// Menggunakan rumus seragam agar Tab 1 dan Tab 2 selalu sinkron mutlak
+function getJuzForSlot(slotIndex) {
     const elapsedWeeks = getElapsedWeeks();
-    return ((participantIndex - 1 + elapsedWeeks) % 30) + 1;
+    return ((slotIndex + elapsedWeeks) % 30) + 1;
+}
+
+function getSlotForJuz(juzNum) {
+    const elapsedWeeks = getElapsedWeeks();
+    return (juzNum - 1 - elapsedWeeks + 3000) % 30;
 }
 
 // SWITCH TAB UI
 window.switchTab = function(tabId) {
     document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
-    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    document.querySelectorAll('.tab-btn-bar').forEach(btn => btn.classList.remove('active'));
 
     const activeTab = document.getElementById(tabId);
     if (activeTab) activeTab.classList.remove('hidden');
@@ -77,7 +87,279 @@ window.switchTab = function(tabId) {
     if (btn) btn.classList.add('active');
 };
 
-// RENDER COLOR WHEEL SVG (TAB 3)
+// INITIALIZE DASHBOARD & FETCH FROM FIREBASE
+window.initTilawahDashboard = async function(user, namaPanggilan) {
+    cachedAuthUser = user;
+    const badge = document.getElementById("currentWeekBadge");
+    if (badge) badge.innerText = `Minggu ke-${currentWeek} (Oktober 2026)`;
+
+    try {
+        if (window.firebaseDb) {
+            const { collection, getDocs, doc, getDoc } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js");
+            
+            if (user) {
+                const userDoc = await getDoc(doc(window.firebaseDb, "alumni", user.uid));
+                if (userDoc.exists()) {
+                    currentUserRole = userDoc.data().role || "member";
+                    if (currentUserRole === "admin" || currentUserRole === "super_admin") {
+                        const btnManage = document.getElementById("btnManageParticipants");
+                        if (btnManage) btnManage.classList.remove("hidden");
+                    }
+                }
+            }
+
+            const alumniSnap = await getDocs(collection(window.firebaseDb, "alumni"));
+            allDbAlumni = [];
+            alumniSnap.forEach(d => allDbAlumni.push({ id: d.id, ...d.data() }));
+
+            const tilawahDoc = await getDoc(doc(window.firebaseDb, "settings", "tilawah_participants"));
+            if (tilawahDoc.exists() && tilawahDoc.data().slots) {
+                assignedParticipants = tilawahDoc.data().slots;
+            }
+        }
+    } catch (err) {
+        console.error("Gagal memuat data tilawah:", err);
+    }
+
+    renderTab1Participants();
+    renderAll30JuzCards(user);
+    renderColorWheel();
+    updateYearlyStats();
+};
+
+// RENDER TAB 1: TABEL PESERTA TILAWAH (SINKRON DENGAN TAB 2)
+function renderTab1Participants() {
+    const tbody = document.getElementById("participantTableBody");
+    if (!tbody) return;
+
+    tbody.innerHTML = "";
+
+    for (let index = 0; index < 30; index++) {
+        const no = index + 1;
+        const assignedJuz = getJuzForSlot(index);
+        const participant = assignedParticipants[index];
+
+        const tr = document.createElement("tr");
+        tr.className = "hover:bg-slate-800/40 transition";
+
+        if (participant) {
+            tr.innerHTML = `
+                <td class="p-3.5 font-bold text-amber-400">${no}</td>
+                <td class="p-3.5 font-semibold text-white">${(participant.namaPanggilan || "ALUMNI").toUpperCase()}</td>
+                <td class="p-3.5 text-slate-300">${participant.namaLengkap || "-"}</td>
+                <td class="p-3.5 text-center">
+                    <span class="px-3 py-1 bg-amber-500/10 border border-amber-500/30 text-amber-400 font-bold rounded-lg text-xs">
+                        Juz ${assignedJuz}
+                    </span>
+                </td>
+                <td class="p-3.5 text-center">
+                    <div class="flex items-center justify-center gap-2">
+                        <span class="px-2.5 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-md text-xs font-semibold">
+                            Aktif
+                        </span>
+                        ${(currentUserRole === "admin" || currentUserRole === "super_admin") ? `
+                            <button onclick="removeParticipant(${index})" title="Hapus Peserta" class="w-7 h-7 bg-red-500/20 hover:bg-red-500 text-red-400 hover:text-white rounded-lg flex items-center justify-center transition">
+                                <i class="fa-solid fa-xmark"></i>
+                            </button>
+                        ` : ''}
+                    </div>
+                </td>
+            `;
+        } else {
+            tr.innerHTML = `
+                <td class="p-3.5 font-bold text-slate-600">${no}</td>
+                <td class="p-3.5 text-slate-500 italic">Slot Kosong</td>
+                <td class="p-3.5 text-slate-500 italic">Belum diisi</td>
+                <td class="p-3.5 text-center text-slate-600">Juz ${assignedJuz}</td>
+                <td class="p-3.5 text-center">
+                    <span class="px-2.5 py-1 bg-slate-800 text-slate-500 border border-slate-700 rounded-md text-xs">
+                        Kosong
+                    </span>
+                </td>
+            `;
+        }
+        tbody.appendChild(tr);
+    }
+}
+
+// RENDER TAB 2: 30 KARTU JUZ (DIJAMIN SINKRON MUTLAK DENGAN TAB 1)
+function renderAll30JuzCards(currentUser) {
+    const container = document.getElementById("juzGrid30Container");
+    if (!container) return;
+
+    container.innerHTML = "";
+
+    for (let juzNum = 1; juzNum <= 30; juzNum++) {
+        const surahs = QURAN_JUZ_DATA[juzNum] || [];
+        const slotIndex = getSlotForJuz(juzNum);
+        const participant = assignedParticipants[slotIndex];
+
+        const assignedName = participant ? (participant.namaPanggilan || "ALUMNI").toUpperCase() : "MENUNGGU PESERTA";
+        const isUserAssigned = currentUser && participant && participant.id === currentUser.uid;
+        const bgClass = (juzNum % 2 !== 0) ? 'juz-card-bg-dark' : 'juz-card-bg-lite';
+
+        const card = document.createElement("div");
+        card.className = `juz-card-box ${bgClass} ${isUserAssigned ? 'user-assigned' : ''}`;
+
+        let htmlContent = `
+            <div>
+                <div class="flex justify-between items-start mb-2">
+                    <h2 class="text-3xl md:text-4xl font-extralight tracking-tight text-white">JUZ ${juzNum}</h2>
+                    <div class="text-[10px] opacity-80 text-right">
+                        <div>Minggu ke-${currentWeek}</div>
+                        <div>Oktober 2026</div>
+                    </div>
+                </div>
+                <h3 class="text-xl font-bold mb-4 tracking-wide text-amber-300">${assignedName}</h3>
+
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-6">
+        `;
+
+        surahs.forEach((s) => {
+            htmlContent += `
+                <div class="surah-card" onclick="toggleSurahCheck(this, ${juzNum})">
+                    <div class="surah-number">${s.no}</div>
+                    <div class="surah-info truncate">
+                        <div class="truncate">${s.name}</div>
+                        <div class="text-[9px] opacity-75">ayat ${s.ayat}</div>
+                    </div>
+                </div>
+            `;
+        });
+
+        htmlContent += `
+                </div>
+            </div>
+
+            <div class="space-y-1 pt-2 border-t border-white/20">
+                <div class="flex justify-between text-[11px] font-semibold opacity-90">
+                    <span>Progres Bacaan/minggu/juz</span>
+                    <span class="text-amber-400 font-bold progress-text">0%</span>
+                </div>
+                <div class="w-full bg-slate-900/60 h-3 rounded-full overflow-hidden p-0.5 border border-white/20">
+                    <div class="bg-amber-400 h-full rounded-full transition-all duration-300 progress-bar-fill" style="width: 0%"></div>
+                </div>
+            </div>
+        `;
+
+        card.innerHTML = htmlContent;
+        container.appendChild(card);
+    }
+}
+
+// TOGGLE CHECKLIST SURAT
+window.toggleSurahCheck = function(element, juzNum) {
+    element.classList.toggle("completed");
+    
+    const cardBox = element.closest('.juz-card-box');
+    const totalSurahs = cardBox.querySelectorAll('.surah-card').length;
+    const completedSurahs = cardBox.querySelectorAll('.surah-card.completed').length;
+    const percent = Math.round((completedSurahs / totalSurahs) * 100);
+
+    const percentText = cardBox.querySelector('.progress-text');
+    const progressBar = cardBox.querySelector('.progress-bar-fill');
+
+    if (percentText) percentText.innerText = `${percent}%`;
+    if (progressBar) progressBar.style.width = `${percent}%`;
+};
+
+// HAPUS / RESET PESERTA DI SLOT TERTENTU
+window.removeParticipant = async function(index) {
+    if (!confirm(`Yakin ingin menghapus peserta dari Slot ${index + 1}?`)) return;
+
+    assignedParticipants[index] = null;
+
+    try {
+        if (window.firebaseDb) {
+            const { doc, setDoc } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js");
+            await setDoc(doc(window.firebaseDb, "settings", "tilawah_participants"), {
+                slots: assignedParticipants,
+                updatedAt: new Date().toISOString()
+            });
+            alert("Peserta berhasil dihapus dari slot.");
+        }
+    } catch (err) {
+        console.error("Gagal memperbarui database:", err);
+        alert("Gagal menghapus peserta.");
+    }
+
+    renderTab1Participants();
+    renderAll30JuzCards(cachedAuthUser);
+};
+
+// MODAL ADMIN MANAGEMENT FUNCTIONS
+window.openManageModal = function() {
+    const modal = document.getElementById("manageParticipantsModal");
+    const slotSelect = document.getElementById("slotSelect");
+    const alumniDbSelect = document.getElementById("alumniDbSelect");
+
+    if (!modal) return;
+
+    slotSelect.innerHTML = "";
+    for (let i = 0; i < 30; i++) {
+        const p = assignedParticipants[i];
+        const label = p ? `Slot ${i + 1} (Juz ${i + 1} awal): ${p.namaPanggilan} (${p.namaLengkap})` : `Slot ${i + 1} (Juz ${i + 1} awal): [Kosong]`;
+        slotSelect.innerHTML += `<option value="${i}">${label}</option>`;
+    }
+
+    alumniDbSelect.innerHTML = `<option value="">-- Pilih Alumni dari Database --</option>`;
+    allDbAlumni.forEach(alumni => {
+        const nama = alumni.namaLengkap || alumni.namaPanggilan || "Alumni";
+        alumniDbSelect.innerHTML += `<option value="${alumni.id}">${nama} (${alumni.kelas || '11.98'})</option>`;
+    });
+
+    modal.classList.remove("hidden");
+    modal.classList.add("flex");
+};
+
+window.closeManageModal = function() {
+    const modal = document.getElementById("manageParticipantsModal");
+    if (modal) {
+        modal.classList.remove("flex");
+        modal.classList.add("hidden");
+    }
+};
+
+window.saveParticipantToSlot = async function() {
+    const slotIndex = parseInt(document.getElementById("slotSelect").value, 10);
+    const alumniId = document.getElementById("alumniDbSelect").value;
+
+    if (isNaN(slotIndex)) return;
+
+    if (!alumniId) {
+        assignedParticipants[slotIndex] = null;
+    } else {
+        const selected = allDbAlumni.find(a => a.id === alumniId);
+        if (selected) {
+            assignedParticipants[slotIndex] = {
+                id: selected.id,
+                namaPanggilan: selected.namaPanggilan || selected.namaLengkap || "Alumni",
+                namaLengkap: selected.namaLengkap || "-",
+                kelas: selected.kelas || "-"
+            };
+        }
+    }
+
+    try {
+        if (window.firebaseDb) {
+            const { doc, setDoc } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js");
+            await setDoc(doc(window.firebaseDb, "settings", "tilawah_participants"), {
+                slots: assignedParticipants,
+                updatedAt: new Date().toISOString()
+            });
+            alert("Daftar Peserta OWOJ berhasil disimpan!");
+        }
+    } catch (err) {
+        console.error("Gagal menyimpan ke Firestore:", err);
+        alert("Gagal menyimpan data peserta. Error: " + err.message);
+    }
+
+    closeManageModal();
+    renderTab1Participants();
+    renderAll30JuzCards(cachedAuthUser);
+};
+
+// RENDER COLOR WHEEL & STATS
 function renderColorWheel() {
     const svg = document.getElementById('colorWheelSvg');
     if (!svg) return;
@@ -120,157 +402,12 @@ function renderColorWheel() {
     }
 }
 
-// INSIALISASI TILAWAH DASHBOARD Saat Auth Ready
-window.initTilawahDashboard = function(user, namaPanggilan) {
-    renderColorWheel();
-    const weekNum = getElapsedWeeks() + 1;
-    const badge = document.getElementById("currentWeekBadge");
-    if (badge) badge.innerText = `Minggu ke-${weekNum} (Oktober 2026)`;
+function updateYearlyStats() {
+    const totalKhatam = document.getElementById("yearlyTotalKhatam");
+    const disciplineRate = document.getElementById("yearlyDisciplineRate");
+    const currentWeekNum = document.getElementById("yearlyCurrentWeekNum");
 
-    if (user) {
-        // Tampilkan Juz 30 sebagai sampel aktif untuk user yang login (misal Nana Ocin)
-        const targetJuz = 30; 
-        const userTitle = document.getElementById("userJuzTitle");
-        const userName = document.getElementById("userNameDisplay");
-        if (userTitle) userTitle.innerText = `JUZ ${targetJuz}`;
-        if (userName) userName.innerText = namaPanggilan || "NANA OCIN";
-
-        renderSurahGrid(targetJuz);
-    }
-};
-
-// RENDER GRID KOTAK SURAT (SAMPEL TAMPILAN JUZ 30)
-function renderSurahGrid(juzNumber) {
-    const grid = document.getElementById("surahGridContainer");
-    if (!grid) return;
-
-    const surahs = QURAN_JUZ_DATA[juzNumber] || [];
-    grid.innerHTML = "";
-
-    let completedCount = 0;
-
-    surahs.forEach((s, idx) => {
-        const card = document.createElement("div");
-        card.className = "surah-card";
-        
-        // Simulasi status checklist (misal beberapa surat diawal selesai)
-        if (idx < 12) {
-            card.classList.add("completed");
-            completedCount++;
-        }
-
-        card.innerHTML = `
-            <div class="surah-number">${s.no}</div>
-            <div class="surah-info">
-                <div>${s.name}</div>
-                <div class="text-[10px] opacity-75">ayat ${s.ayat}</div>
-            </div>
-        `;
-
-        card.addEventListener("click", () => {
-            card.classList.toggle("completed");
-            updateProgressBar(surahs.length);
-        });
-
-        grid.appendChild(card);
-    });
-
-    updateProgressBar(surahs.length);
+    if (totalKhatam) totalKhatam.innerText = `${Math.floor(currentWeek / 4)} Kali`;
+    if (disciplineRate) disciplineRate.innerText = `94%`;
+    if (currentWeekNum) currentWeekNum.innerText = `Pekan ${currentWeek}`;
 }
-
-function updateProgressBar(totalSurahs) {
-    const completed = document.querySelectorAll(".surah-card.completed").length;
-    const percent = Math.round((completed / totalSurahs) * 100);
-
-    const percentText = document.getElementById("userProgressPercent");
-    const progressBar = document.getElementById("userProgressBar");
-
-    if (percentText) percentText.innerText = `${percent}%`;
-    if (progressBar) progressBar.style.width = `${percent}%`;
-}
-
-// FUNGSI UTAMA RENDER 30 CARD JUZ DALAM TAB 2
-function renderAll30JuzCards(currentUser) {
-    const container = document.getElementById("juzGrid30Container");
-    if (!container) return;
-
-    container.innerHTML = "";
-
-    // Loop dari Juz 1 sampai Juz 30
-    for (let juzNum = 1; juzNum <= 30; juzNum++) {
-        const surahs = QURAN_JUZ_DATA[juzNum] || [];
-        
-        // Simulasi Nama Peserta Penanggung Jawab Juz Pekan Ini
-        const assignedName = "NANA OCIN"; 
-        const isUserAssigned = (juzNum === 30); // Contoh: User sedang login bertugas di Juz 30
-
-        // LOGIKA BACKGROUND SELANG-SELING:
-        // Jika juzNum Ganjil (1, 3, 5...) -> lt-tilawah-dark.webp
-        // Jika juzNum Genap (2, 4, 6...)  -> lt-tilawah-lite.webp
-        const bgClass = (juzNum % 2 !== 0) ? 'juz-card-bg-dark' : 'juz-card-bg-lite';
-
-        const card = document.createElement("div");
-        card.className = `juz-card-box ${bgClass} ${isUserAssigned ? 'user-assigned' : ''}`;
-
-        // Header Card (Juz Number, Nama Peserta, Periode)
-        let htmlContent = `
-            <div>
-                <div class="flex justify-between items-start mb-2">
-                    <h2 class="text-3xl md:text-4xl font-extralight tracking-tight text-white">JUZ ${juzNum}</h2>
-                    <div class="text-[10px] opacity-80 text-right">
-                        <div>Minggu ke-4</div>
-                        <div>Bulan Oktober 2026</div>
-                    </div>
-                </div>
-                <h3 class="text-xl font-bold mb-4 tracking-wide">${assignedName}</h3>
-
-                <!-- GRID SURAT-SURAT DALAM JUZ -->
-                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-6">
-        `;
-
-        // Render Kotak Surat dalam Juz Ini
-        surahs.forEach((s, idx) => {
-            const isCompleted = (idx % 2 === 0); // Simulasi status tercentang
-            htmlContent += `
-                <div class="surah-card ${isCompleted ? 'completed' : ''}" onclick="toggleSurahCheck(this, ${juzNum}, ${s.no})">
-                    <div class="surah-number">${s.no}</div>
-                    <div class="surah-info truncate">
-                        <div class="truncate">${s.name}</div>
-                        <div class="text-[9px] opacity-75">ayat ${s.ayat}</div>
-                    </div>
-                </div>
-            `;
-        });
-
-        htmlContent += `
-                </div>
-            </div>
-
-            <!-- PROGRESS BAR CARD -->
-            <div class="space-y-1 pt-2 border-t border-white/20">
-                <div class="flex justify-between text-[11px] font-semibold opacity-90">
-                    <span>Progres Bacaan/minggu/juz</span>
-                    <span class="text-amber-400 font-bold">35%</span>
-                </div>
-                <div class="w-full bg-slate-900/60 h-3 rounded-full overflow-hidden p-0.5 border border-white/20">
-                    <div class="bg-white h-full rounded-full transition-all duration-300" style="width: 35%"></div>
-                </div>
-            </div>
-        `;
-
-        card.innerHTML = htmlContent;
-        container.appendChild(card);
-    }
-}
-
-// TOGGLE CHECKLIST SURAT
-window.toggleSurahCheck = function(element, juzNum, surahNo) {
-    element.classList.toggle("completed");
-    // Di sini nantinya tersambung ke Firebase Firestore untuk menyimpan progres real-time
-};
-
-// Inisialisasi saat Auth Ready
-window.initTilawahDashboard = function(user, namaPanggilan) {
-    renderColorWheel();
-    renderAll30JuzCards(user);
-};
