@@ -334,7 +334,7 @@ function renderActiveJuzCards(currentUser) {
 }
 
 // ==========================================
-// 3. LOGIKA HAK AKSES & REPORT (DIJAMIN TANPA ERROR SYNTAX)
+// 3. LOGIKA HAK AKSES, REPORT & GENERATOR GAMBAR KARTU TILAWAH
 // ==========================================
 let activeJuzTarget = null;
 let activeSuratElement = null;
@@ -358,12 +358,12 @@ window.handleSurahCardClick = function(assignedJuz, surahName, suratAyat, elemen
                           (loggedInPanggilan && loggedInPanggilan.includes(ownerNameUpper));
     const isSuperAdmin = (role === "super_admin");
 
-    // Jika BUKAN milik Anda & BUKAN super admin -> Abaikan (View-only murni)
+    // Jika BUKAN milik Anda & BUKAN super admin -> Abaikan (View-only murni tanpa respon)
     if (!isOwnerById && !isOwnerByName && !isSuperAdmin) {
         return;
     }
 
-    // Cek Unreport jika sudah selesai
+    // Cek Unreport jika surat sudah selesai
     const isAlreadyCompleted = element.classList.contains("completed");
     if (isAlreadyCompleted) {
         const confirmUnreport = confirm("Apakah anda ingin menghapus report bacaan anda?");
@@ -487,14 +487,158 @@ document.getElementById("yesReportBtn")?.addEventListener("click", async () => {
     showWhatsappModal(activeJuzTarget.juzNumber, activeJuzTarget.suratName, currentDate, currentTime);
 });
 
-function showWhatsappModal(juzNumber, suratName, dateStr, timeStr) {
+// Fungsi Generator Gambar Kartu Laporan Menggunakan Background Webp
+async function generateReportImage(juzNumber, suratName, dateStr, timeStr, userName, websiteLink) {
+    return new Promise((resolve) => {
+        const canvas = document.getElementById("reportCanvas");
+        if (!canvas) {
+            resolve(null);
+            return;
+        }
+        const ctx = canvas.getContext("2d");
+
+        const bgImg = new Image();
+        bgImg.crossOrigin = "anonymous";
+        bgImg.src = "assets/images/back-report-tilawah.webp";
+
+        bgImg.onload = function () {
+            ctx.drawImage(bgImg, 0, 0, canvas.width, canvas.height);
+
+            ctx.textAlign = "center";
+            ctx.fillStyle = "#1e293b";
+
+            // Teks Pengantar
+            ctx.font = "500 36px sans-serif";
+            ctx.fillText("Alhamdulillah, saya", canvas.width / 2, 750);
+
+            ctx.font = "bold 46px sans-serif";
+            ctx.fillStyle = "#0f172a";
+            ctx.fillText(userName, canvas.width / 2, 810);
+
+            ctx.font = "500 36px sans-serif";
+            ctx.fillStyle = "#1e293b";
+            ctx.fillText("telah menyelesaikan:", canvas.width / 2, 870);
+
+            // Teks Utama (Juz & Surat)
+            ctx.font = "bold 58px sans-serif";
+            ctx.fillStyle = "#0f172a";
+            ctx.fillText(`Juz ${juzNumber} (${suratName})`, canvas.width / 2, 990);
+
+            // Tanggal & Jam
+            ctx.font = "400 36px sans-serif";
+            ctx.fillStyle = "#334155";
+            ctx.fillText(`Tanggal: ${dateStr}`, canvas.width / 2, 1070);
+            ctx.fillText(`Jam : ${timeStr.replace('jam : ', '')}`, canvas.width / 2, 1130);
+
+            // Doa Penutup
+            ctx.font = "400 34px sans-serif";
+            ctx.fillStyle = "#1e293b";
+            ctx.fillText("Barakallahu fiikum,", canvas.width / 2, 1260);
+            ctx.fillText("semoga istiqomah dan membawa keberkahan. 🤲", canvas.width / 2, 1315);
+
+            // Link Website
+            ctx.font = "400 28px sans-serif";
+            ctx.fillStyle = "#64748b";
+            ctx.fillText("Cek progres selengkapnya di sini:", canvas.width / 2, 1430);
+
+            ctx.font = "bold 30px sans-serif";
+            ctx.fillStyle = "#0f172a";
+            ctx.fillText(websiteLink.replace(/^https?:\/\//, ''), canvas.width / 2, 1480);
+
+            const dataUrl = canvas.toDataURL("image/webp", 0.9);
+            resolve(dataUrl);
+        };
+
+        bgImg.onerror = function() {
+            console.error("Gagal memuat background report image.");
+            resolve(null);
+        };
+    });
+}
+
+let generatedReportImageUrl = "";
+
+async function generateReportImage(juzNumber, suratName, dateStr, timeStr, userName, websiteLink) {
+    return new Promise((resolve) => {
+        const canvas = document.getElementById("reportCanvas");
+        if (!canvas) {
+            resolve(null);
+            return;
+        }
+        const ctx = canvas.getContext("2d");
+
+        const bgImg = new Image();
+        bgImg.crossOrigin = "anonymous";
+        bgImg.src = "assets/images/back-report-tilawah.webp";
+
+        bgImg.onload = function () {
+            ctx.drawImage(bgImg, 0, 0, canvas.width, canvas.height);
+
+            ctx.textAlign = "center";
+            ctx.fillStyle = "#1e293b";
+
+            // 1. Teks Pengantar
+            ctx.font = "500 36px sans-serif";
+            ctx.fillStyle = "#334155";
+            ctx.fillText("Alhamdulillah, saya", canvas.width / 2, 750);
+
+            // 2. Nama Pengguna (Tebal & Menonjol)
+            ctx.font = "bold 52px sans-serif";
+            ctx.fillStyle = "#0f172a";
+            ctx.fillText(userName, canvas.width / 2, 820);
+
+            ctx.font = "500 36px sans-serif";
+            ctx.fillStyle = "#334155";
+            ctx.fillText("telah menyelesaikan:", canvas.width / 2, 885);
+
+            // 3. Juz & Nama Surat Utama
+            ctx.font = "bold 56px sans-serif";
+            ctx.fillStyle = "#0f172a";
+            ctx.fillText(`Juz ${juzNumber} (${suratName})`, canvas.width / 2, 995);
+
+            // 4. Tanggal & Jam
+            ctx.font = "400 36px sans-serif";
+            ctx.fillStyle = "#334155";
+            ctx.fillText(`Tanggal: ${dateStr}`, canvas.width / 2, 1075);
+            ctx.fillText(`Jam : ${timeStr.replace('jam : ', '')}`, canvas.width / 2, 1135);
+
+            // 5. Kalimat Penutup & Doa
+            ctx.font = "500 34px sans-serif";
+            ctx.fillStyle = "#1e293b";
+            ctx.fillText("Barakallahu fiikum,", canvas.width / 2, 1270);
+            ctx.fillText("semoga istiqomah dan membawa keberkahan.", canvas.width / 2, 1325);
+
+            // 6. Link Website Footer
+            ctx.font = "400 28px sans-serif";
+            ctx.fillStyle = "#64748b";
+            ctx.fillText("Cek progres selengkapnya di sini:", canvas.width / 2, 1435);
+
+            ctx.font = "bold 32px sans-serif";
+            ctx.fillStyle = "#0f172a";
+            ctx.fillText(websiteLink.replace(/^https?:\/\//, ''), canvas.width / 2, 1485);
+
+            const dataUrl = canvas.toDataURL("image/webp", 0.95);
+            resolve(dataUrl);
+        };
+
+        bgImg.onerror = function() {
+            console.error("Gagal memuat background report image.");
+            resolve(null);
+        };
+    });
+}
+
+async function showWhatsappModal(juzNumber, suratName, dateStr, timeStr) {
     const waModal = document.getElementById("whatsappModal");
-    const waTextArea = document.getElementById("waMessageText");
     const sendWaBtn = document.getElementById("sendWaBtn");
 
     const userName = cachedNamaPanggilan.toUpperCase() || "ALUMNI";
     const websiteLink = window.location.href;
 
+    // Generate gambar banner secara instan di latar belakang canvas
+    generatedReportImageUrl = await generateReportImage(juzNumber, suratName, dateStr, timeStr, userName, websiteLink);
+
+    // Siapkan teks untuk dibagikan ke WhatsApp
     const message = "✨ LAPORAN TILAWAH OWOJ ✨\n" +
                     "Ika SMAN 11 Bandung Angkatan '98\n\n" +
                     "Alhamdulillah, saya *" + userName + "* telah menyelesaikan:\n" +
@@ -504,18 +648,31 @@ function showWhatsappModal(juzNumber, suratName, dateStr, timeStr) {
                     "🔍 Cek progres selengkapnya di sini:\n" +
                     "- " + websiteLink;
 
-    if (waTextArea) waTextArea.value = message;
-
     const encodedMessage = encodeURIComponent(message);
-    if (sendWaBtn) sendWaBtn.href = "https://api.whatsapp.com/send?text=" + encodedMessage;
+    if (sendWaBtn) {
+        sendWaBtn.href = "https://api.whatsapp.com/send?text=" + encodedMessage;
+    }
 
+    // Tampilkan modal banner
     if (waModal) {
         waModal.classList.remove("hidden");
         waModal.classList.add("flex");
     }
 }
 
-window.closeWaModal = function() {
+// Aksi otomatis saat tombol "Kirim ke WhatsApp" ditekan:
+window.handleSendWhatsAppAndClose = function() {
+    // 1. Otomatis unduh gambar banner ke perangkat alumni
+    if (generatedReportImageUrl) {
+        const downloadLink = document.createElement("a");
+        downloadLink.href = generatedReportImageUrl;
+        downloadLink.download = `Laporan_Juz_${activeJuzTarget ? activeJuzTarget.juzNumber : 'OWOJ'}_${cachedNamaPanggilan.toUpperCase()}.webp`;
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+    }
+
+    // 2. Tutup modal secara otomatis dan kembali ke halaman dashboard
     const waModal = document.getElementById("whatsappModal");
     if (waModal) {
         waModal.classList.remove("flex");
@@ -523,49 +680,11 @@ window.closeWaModal = function() {
     }
 };
 
-window.openManageModal = function() {
-    const modal = document.getElementById("manageParticipantsModal");
-    const alumniDbSelect = document.getElementById("alumniDbSelect");
-
-    if (!modal || !alumniDbSelect) return;
-
-    const registeredIds = assignedParticipants.map(p => p.id);
-    alumniDbSelect.innerHTML = `<option value="">-- Pilih Alumni dari Database --</option>`;
-    
-    if (allDbAlumni && allDbAlumni.length > 0) {
-        const filteredAlumni = allDbAlumni.filter(alumni => {
-            const role = (alumni.role || "").toLowerCase().trim();
-            const namaPanggilan = (alumni.namaPanggilan || "").toLowerCase();
-            const namaLengkap = (alumni.namaLengkap || "").toLowerCase();
-            
-            const isRoleAdmin = role === "admin" || role === "super_admin" || role.includes("admin");
-            const isNameAdmin = namaPanggilan.includes("admin") || namaLengkap.includes("admin");
-            const isAlreadyRegistered = registeredIds.includes(alumni.id);
-
-            return !isRoleAdmin && !isNameAdmin && !isAlreadyRegistered;
-        });
-
-        if (filteredAlumni.length > 0) {
-            filteredAlumni.forEach(alumni => {
-                const nama = alumni.namaLengkap || alumni.namaPanggilan || "Alumni";
-                alumniDbSelect.innerHTML += `<option value="${alumni.id}">${nama} (${alumni.kelas || '11.98'})</option>`;
-            });
-        } else {
-            alumniDbSelect.innerHTML += `<option value="" disabled>Tidak ada alumni yang tersedia untuk didaftarkan</option>`;
-        }
-    } else {
-        alumniDbSelect.innerHTML += `<option value="" disabled>Data alumni kosong atau belum termuat</option>`;
-    }
-
-    modal.classList.remove("hidden");
-    modal.classList.add("flex");
-};
-
-window.closeManageModal = function() {
-    const modal = document.getElementById("manageParticipantsModal");
-    if (modal) {
-        modal.classList.remove("flex");
-        modal.classList.add("hidden");
+window.closeWaModal = function() {
+    const waModal = document.getElementById("whatsappModal");
+    if (waModal) {
+        waModal.classList.remove("flex");
+        waModal.classList.add("hidden");
     }
 };
 

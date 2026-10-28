@@ -169,22 +169,27 @@
     </div>
 </div>
 
-<!-- Modal / Panel Ucapan Selamat & Kirim WhatsApp -->
-<div id="whatsappModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/70 backdrop-blur-sm">
-    <div class="w-full max-w-lg rounded-2xl bg-[#1e293b] p-6 text-white shadow-2xl border border-slate-700">
-        <h3 class="text-lg font-bold text-green-400 mb-2">🎉 Alhamdulillah! Jazakumullah Khairan</h3>
-        <p class="text-slate-300 text-sm mb-4">Laporan tilawah Anda berhasil dicatat. Silakan salin ucapan di bawah ini untuk dikirim ke grup WhatsApp:</p>
+<!-- Modal / Panel Banner Preview Kartu Laporan Tilawah -->
+<div id="whatsappModal" class="fixed inset-0 z-[99999] hidden items-center justify-center bg-black/80 backdrop-blur-md p-4">
+    <div class="relative w-full max-w-md rounded-3xl overflow-hidden shadow-2xl border border-amber-500/30 flex flex-col items-center">
         
-        <textarea id="waMessageText" rows="5" class="w-full rounded-xl bg-slate-900 p-3 text-sm text-slate-200 border border-slate-700 focus:outline-none focus:border-green-500 mb-4" readonly></textarea>
-        
-        <div class="flex justify-end space-x-3">
-            <button onclick="closeWaModal()" class="px-4 py-2 rounded-xl bg-slate-700 text-slate-200 hover:bg-slate-600 font-medium transition">Tutup</button>
-            <a id="sendWaBtn" href="#" target="_blank" class="px-5 py-2 rounded-xl bg-green-600 text-white hover:bg-green-500 font-bold transition flex items-center space-x-2">
-                <i class="fab fa-whatsapp"></i> <span>Kirim ke WhatsApp</span>
+        <!-- Area Preview Gambar Banner yang Digenerate secara Real-time -->
+        <div id="bannerPreviewContainer" class="w-full bg-[#d1d5e5] flex justify-center items-center">
+            <canvas id="reportCanvas" width="1080" height="1920" class="w-full h-auto max-h-[80vh] object-contain shadow-inner"></canvas>
+        </div>
+
+        <!-- Bar Tombol Aksi di Bawah Banner (Warna background diubah ke #d1d5e5) -->
+        <div class="w-full bg-[#d1d5e5] px-6 pb-6 pt-2 flex items-center justify-center">
+            <a id="sendWaBtn" href="#" target="_blank" onclick="handleSendWhatsAppAndClose()" class="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-black text-sm transition shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2.5">
+                <i class="fab fa-whatsapp text-lg"></i> <span>Kirim ke WhatsApp</span>
             </a>
         </div>
+
     </div>
 </div>
+
+<!-- Canvas Tersembunyi untuk Generate Gambar -->
+<canvas id="reportCanvas" width="1080" height="1920" style="display: none;"></canvas>
 
             <!-- TAB 2: ONE WEEK ONE JUZ -->
 <div id="tab2" class="tab-content block space-y-4">
@@ -248,6 +253,9 @@
 
         </div>
     </main>
+
+    <!-- Canvas Tersembunyi untuk Generate Gambar Kartu Laporan Tilawah -->
+    <canvas id="reportCanvas" width="1080" height="1920" style="display: none;"></canvas>
 
     <!-- FOOTER VISITOR COUNTER -->
     <div class="counter-wrapper">
