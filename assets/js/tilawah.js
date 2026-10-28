@@ -1,5 +1,5 @@
 /* ==========================================
-   OWOJ TILAWAH DASHBOARD ENGINE - SAFE SYNC
+   OWOJ TILAWAH DASHBOARD ENGINE - FULL SYNC
 ========================================== */
 
 const QURAN_JUZ_DATA = {
@@ -54,6 +54,9 @@ let assignedParticipants = [];
 let currentUserRole = "member";
 let cachedAuthUser = null;
 let cachedNamaPanggilan = "";
+let activeJuzTarget = null;
+let activeSuratElement = null;
+let generatedReportImageUrl = "";
 
 function getElapsedWeeks() {
     if (!officialStartDate) return 0;
@@ -78,6 +81,11 @@ window.switchTab = function(tabId) {
 
     const btn = document.getElementById('btn' + tabId.charAt(0).toUpperCase() + tabId.slice(1));
     if (btn) btn.classList.add('active');
+
+    // Jika tab Progres Mingguan dibuka, render ulang color wheel agar akurat
+    if (tabId === 'tab3') {
+        renderColorWheel();
+    }
 };
 
 window.initTilawahDashboard = async function(user, namaPanggilan) {
@@ -122,7 +130,6 @@ window.initTilawahDashboard = async function(user, namaPanggilan) {
     renderTilawahTabs();
     renderActiveJuzCards(user);
     
-    // LOAD REPORT YANG SUDAH TERSIMPAN DI FIREBASE
     const currentWeek = getElapsedWeeks() + 1;
     await loadExistingReports(currentWeek);
 
@@ -226,12 +233,12 @@ function renderTilawahTabs() {
         return;
     }
 
-    let html = '<span class="text-xs text-slate-400 font-semibold mr-2 self-center">Pilih Kelompok:</span>';
+    let html = '';
     for (let i = 1; i <= totalGroups; i++) {
         const isActive = (window.currentTilawahGroup || 1) === i;
         html += `
-            <button onclick="switchTilawahGroup(${i})" class="px-4 py-1.5 rounded-lg text-xs font-bold transition ${isActive ? 'bg-amber-500 text-slate-950 shadow-md' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}" data-group="${i}">
-                KELOMPOK TILAWAH ${i}
+            <button onclick="switchTilawahGroup(${i})" class="px-4 py-2 rounded-xl text-xs font-bold transition ${isActive ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}" data-group="${i}">
+                LIQO TILAWAH ${i}
             </button>
         `;
     }
@@ -277,17 +284,21 @@ function renderActiveJuzCards(currentUser) {
             isUserAssigned = isUidMatch || isNameMatch;
         }
 
-        const bgClass = (assignedJuz % 2 !== 0) ? 'juz-card-bg-dark' : 'juz-card-bg-lite';
+        // Tentukan background: Jika user aktif, gunakan gold. Jika tidak, ikuti ganjil/genap (dark/lite)
+let bgClass = (assignedJuz % 2 !== 0) ? 'juz-card-bg-dark' : 'juz-card-bg-lite';
+if (isUserAssigned) {
+    bgClass = 'juz-card-bg-gold';
+}
 
-        const card = document.createElement("div");
-        card.className = `juz-card-box ${bgClass} ${isUserAssigned ? 'user-assigned' : ''}`;
-        card.id = `juz-btn-${assignedJuz}`;
+const card = document.createElement("div");
+card.className = `juz-card-box ${bgClass} ${isUserAssigned ? 'user-assigned' : ''}`;
+card.id = `juz-btn-${assignedJuz}`;
 
         let htmlContent = `
             <div>
                 <div class="flex justify-between items-start mb-2">
-                    <h2 class="text-3xl md:text-4xl font-extralight tracking-tight text-white">JUZ ${assignedJuz}</h2>
-                    <div class="text-[10px] opacity-80 text-right">
+                    <h2 class="text-3xl md:text-4xl font-extralight tracking-tight ${isUserAssigned ? 'text-[#0f172a]' : 'text-white'}">JUZ ${assignedJuz}</h2>
+                    <div class="text-[10px] opacity-80 text-right ${isUserAssigned ? 'text-[#000000]' : ''}">
                         <div>No. Urut: ${index + 1}</div>
                         <div>Pekan ke-${getElapsedWeeks() + 1}</div>
                     </div>
@@ -301,36 +312,36 @@ function renderActiveJuzCards(currentUser) {
             const safeSurahName = s.name.replace(/'/g, "\\'");
 
             htmlContent += `
-                <div class="surah-card relative overflow-hidden cursor-pointer transition p-3 rounded-xl bg-slate-800/80 border border-slate-700/60 hover:border-amber-400/50 flex items-center justify-between" onclick="handleSurahCardClick(${assignedJuz}, '${safeSurahName}', '${s.ayat}', this, '${ownerId}', '${assignedName}')">
-                    <div class="flex items-center gap-3.5 w-full relative z-10">
-                        <div class="surah-number font-black text-3xl shrink-0 text-center text-amber-400">${s.no}</div>
-                        <div class="surah-info truncate w-full">
-                            <div class="font-bold text-white truncate text-sm surah-title">${s.name}</div>
-                            <div class="text-[10px] text-slate-400 surah-ayat">ayat ${s.ayat}</div>
-                        </div>
-                    </div>
-                    <div class="surat-time-badge hidden shrink-0 text-right pl-3 border-l border-slate-300/40 ml-2 relative z-10">
-                        <div class="text-[11px] font-bold text-[#080c1d] date-text"></div>
-                        <div class="text-[10px] text-[#1e293b] font-medium time-text"></div>
-                    </div>
-                </div>
-            `;
+    <div class="surah-card relative overflow-hidden cursor-pointer transition p-3 rounded-xl bg-slate-800/80 border border-slate-700/60 hover:border-amber-400/50 flex items-center justify-between" onclick="handleSurahCardClick(${assignedJuz}, '${safeSurahName}', '${s.ayat}', this, '${ownerId}', '${assignedName}')">
+        <div class="flex items-center gap-3.5 w-full relative z-10">
+            <div class="surah-number font-black text-3xl shrink-0 text-center text-[#8698b5]">${s.no}</div>
+            <div class="surah-info truncate w-full">
+                <div class="font-bold text-[#8698b5] truncate text-sm surah-title">${s.name}</div>
+                <div class="text-[10px] text-[#8698b5]/80 surah-ayat">ayat ${s.ayat}</div>
+            </div>
+        </div>
+        <div class="surat-time-badge hidden shrink-0 text-right pl-3 border-l border-slate-300/40 ml-2 relative z-10">
+            <div class="text-[11px] font-bold text-[#080c1d] date-text"></div>
+            <div class="text-[10px] text-[#1e293b] font-medium time-text"></div>
+        </div>
+    </div>
+`;
         });
 
         htmlContent += `
-                </div>
-            </div>
+        </div>
+    </div>
 
-            <div class="space-y-1 pt-2 border-t border-white/20">
-                <div class="flex justify-between text-[11px] font-semibold opacity-90">
-                    <span>Progres Bacaan Pekan Ini</span>
-                    <span class="text-amber-400 font-bold progress-text">0%</span>
-                </div>
-                <div class="w-full bg-slate-900/60 h-3 rounded-full overflow-hidden p-0.5 border border-white/20">
-                    <div class="bg-amber-400 h-full rounded-full transition-all duration-300 progress-bar-fill" style="width: 0%"></div>
-                </div>
-            </div>
-        `;
+    <div class="space-y-1 pt-2 border-t ${isUserAssigned ? 'border-[#0f172a]/30' : 'border-white/20'}">
+        <div class="flex justify-between text-[11px] font-semibold opacity-90">
+            <span class="text-[#8698b5]">Progres Bacaan Pekan Ini</span>
+            <span class="text-amber-400 font-bold progress-text">0%</span>
+        </div>
+        <div class="w-full bg-slate-900/60 h-3 rounded-full overflow-hidden p-0.5 border border-white/20">
+            <div class="bg-amber-400 h-full rounded-full transition-all duration-300 progress-bar-fill" style="width: 0%"></div>
+        </div>
+    </div>
+`;
 
         card.innerHTML = htmlContent;
         container.appendChild(card);
@@ -340,10 +351,6 @@ function renderActiveJuzCards(currentUser) {
 // ==========================================
 // LOGIKA HAK AKSES KLIK SURAT, REPORT & FIREBASE
 // ==========================================
-let activeJuzTarget = null;
-let activeSuratElement = null;
-let generatedReportImageUrl = "";
-
 window.handleSurahCardClick = function(assignedJuz, surahName, suratAyat, element, juzOwnerId, juzOwnerName) {
     if (!cachedAuthUser) {
         alert("Silakan sign in terlebih dahulu.");
@@ -363,12 +370,10 @@ window.handleSurahCardClick = function(assignedJuz, surahName, suratAyat, elemen
                           (loggedInPanggilan && loggedInPanggilan.includes(ownerNameUpper));
     const isSuperAdmin = (role === "super_admin");
 
-    // Jika BUKAN milik Anda & BUKAN super admin -> Abaikan (View-only murni)
     if (!isOwnerById && !isOwnerByName && !isSuperAdmin) {
         return;
     }
 
-    // Cek Unreport jika sudah selesai
     const isAlreadyCompleted = element.classList.contains("completed");
     if (isAlreadyCompleted) {
         const confirmUnreport = confirm("Apakah anda ingin menghapus report bacaan anda?");
@@ -378,7 +383,6 @@ window.handleSurahCardClick = function(assignedJuz, surahName, suratAyat, elemen
         return;
     }
 
-    // Buka Modal Konfirmasi Report
     triggerReportTilawah(assignedJuz, surahName, suratAyat, element);
 };
 
@@ -408,7 +412,6 @@ document.getElementById("cancelReportBtn")?.addEventListener("click", () => {
     activeSuratElement = null;
 });
 
-// Eksekusi saat konfirmasi "Ya" laporan ditekan
 document.getElementById("yesReportBtn")?.addEventListener("click", async () => {
     if (!activeJuzTarget || !activeSuratElement) return;
 
@@ -424,10 +427,8 @@ document.getElementById("yesReportBtn")?.addEventListener("click", async () => {
     const optionsTime = { hour: '2-digit', minute: '2-digit', hour12: false };
     const currentTime = "jam : " + new Date().toLocaleTimeString('id-ID', optionsTime);
 
-    // Terapkan visual kartu selesai (berwarna putih)
     applySurahCompletedVisual(activeSuratElement, currentDate, currentTime);
 
-    // Simpan permanen ke Firebase Firestore agar tidak hilang saat di-refresh
     const currentWeek = getElapsedWeeks() + 1;
     const juzNum = activeJuzTarget.juzNumber;
     const suratName = activeJuzTarget.suratName;
@@ -452,11 +453,9 @@ document.getElementById("yesReportBtn")?.addEventListener("click", async () => {
         console.error("Gagal menyimpan report ke Firebase:", err);
     }
     
-    // Tampilkan modal banner preview WhatsApp
     showWhatsappModal(activeJuzTarget.juzNumber, activeJuzTarget.suratName, currentDate, currentTime);
 });
 
-// Fungsi pembantu untuk mengubah visual kartu menjadi selesai
 function applySurahCompletedVisual(element, dateStr, timeStr) {
     element.classList.add("completed");
 
@@ -464,10 +463,11 @@ function applySurahCompletedVisual(element, dateStr, timeStr) {
     const subTitleEl = element.querySelector('.surah-ayat');
     const numEl = element.querySelector('.surah-number');
     
-    if (titleEl) { titleEl.classList.remove('text-white'); titleEl.classList.add('text-[#080c1d]'); }
-    if (subTitleEl) { subTitleEl.classList.remove('text-slate-400'); subTitleEl.classList.add('text-[#1e293b]'); }
+    // Saat selesai (background putih), teks berubah gelap agar terbaca jelas
+    if (titleEl) { titleEl.classList.remove('text-[#8698b5]'); titleEl.classList.add('text-[#080c1d]'); }
+    if (subTitleEl) { subTitleEl.classList.remove('text-[#8698b5]/80'); subTitleEl.classList.add('text-[#1e293b]'); }
     if (numEl) { 
-        numEl.classList.remove('text-amber-400'); 
+        numEl.classList.remove('text-[#8698b5]'); 
         numEl.classList.add('text-[#080c1d]'); 
     }
 
@@ -492,7 +492,6 @@ function applySurahCompletedVisual(element, dateStr, timeStr) {
     }
 }
 
-// Fungsi memuat riwayat report dari Firebase saat halaman dibuka/di-refresh
 async function loadExistingReports(currentWeek) {
     if (!window.firebaseDb) return;
     try {
@@ -506,8 +505,8 @@ async function loadExistingReports(currentWeek) {
             if (juzCard) {
                 const surahCards = juzCard.querySelectorAll('.surah-card');
                 surahCards.forEach((sc) => {
-                    const title = sc.querySelector('.surah-title')?.innerText;
-                    if (title === data.surat) {
+                    const title = sc.querySelector('.surah-title')?.innerText.trim();
+                    if (title === data.surat.trim()) {
                         applySurahCompletedVisual(sc, data.tanggal, data.waktu);
                     }
                 });
@@ -518,7 +517,6 @@ async function loadExistingReports(currentWeek) {
     }
 }
 
-// Generator Gambar Banner Kartu Laporan (Menggunakan template Webp)
 async function generateReportImage(juzNumber, suratName, dateStr, timeStr, userName, websiteLink) {
     return new Promise((resolve) => {
         const canvas = document.getElementById("reportCanvas");
@@ -538,12 +536,10 @@ async function generateReportImage(juzNumber, suratName, dateStr, timeStr, userN
             ctx.textAlign = "center";
             ctx.fillStyle = "#1e293b";
 
-            // 1. Teks Pengantar
             ctx.font = "500 36px sans-serif";
             ctx.fillStyle = "#334155";
             ctx.fillText("Alhamdulillah, saya", canvas.width / 2, 750);
 
-            // 2. Nama Pengguna (Tebal & Menonjol)
             ctx.font = "bold 52px sans-serif";
             ctx.fillStyle = "#0f172a";
             ctx.fillText(userName, canvas.width / 2, 820);
@@ -552,24 +548,20 @@ async function generateReportImage(juzNumber, suratName, dateStr, timeStr, userN
             ctx.fillStyle = "#334155";
             ctx.fillText("telah menyelesaikan:", canvas.width / 2, 885);
 
-            // 3. Juz & Nama Surat Utama
             ctx.font = "bold 56px sans-serif";
             ctx.fillStyle = "#0f172a";
             ctx.fillText(`Juz ${juzNumber} (${suratName})`, canvas.width / 2, 995);
 
-            // 4. Tanggal & Jam
             ctx.font = "400 36px sans-serif";
             ctx.fillStyle = "#334155";
             ctx.fillText(`Tanggal: ${dateStr}`, canvas.width / 2, 1075);
             ctx.fillText(`Jam : ${timeStr.replace('jam : ', '')}`, canvas.width / 2, 1135);
 
-            // 5. Kalimat Penutup & Doa
             ctx.font = "500 34px sans-serif";
             ctx.fillStyle = "#1e293b";
             ctx.fillText("Barakallahu fiikum,", canvas.width / 2, 1270);
             ctx.fillText("semoga istiqomah dan membawa keberkahan.", canvas.width / 2, 1325);
 
-            // 6. Link Website Footer
             ctx.font = "400 28px sans-serif";
             ctx.fillStyle = "#64748b";
             ctx.fillText("Cek progres selengkapnya di sini:", canvas.width / 2, 1435);
@@ -589,7 +581,6 @@ async function generateReportImage(juzNumber, suratName, dateStr, timeStr, userN
     });
 }
 
-// Menampilkan Modal Banner WhatsApp
 async function showWhatsappModal(juzNumber, suratName, dateStr, timeStr) {
     const waModal = document.getElementById("whatsappModal");
     const sendWaBtn = document.getElementById("sendWaBtn");
@@ -619,7 +610,6 @@ async function showWhatsappModal(juzNumber, suratName, dateStr, timeStr) {
     }
 }
 
-// Aksi otomatis saat tombol "Kirim ke WhatsApp" ditekan
 window.handleSendWhatsAppAndClose = function() {
     if (generatedReportImageUrl) {
         const downloadLink = document.createElement("a");
@@ -714,57 +704,300 @@ window.removeParticipant = async function(index) {
     renderActiveJuzCards(cachedAuthUser);
 };
 
+// ==========================================
+// COLOR WHEEL DYNAMIC PROGRES MINGGUAN (MULTI-KELOMPOK LIQO)
+// ==========================================
 function renderColorWheel() {
-    const svg = document.getElementById('colorWheelSvg');
-    if (!svg) return;
+    const container = document.getElementById('tab3') || document.querySelector('#tab3 .space-y-8');
+    if (!container) return;
 
-    svg.innerHTML = '';
-    const cx = 250, cy = 250, rOuter = 230, rInner = 90;
-    const totalSlices = 30;
+    // Cari atau buat wadah utama untuk menampung roda progres (bisa lebih dari 1 jika ada Liqo 2, 3, dst.)
+    let wheelsWrapper = document.getElementById('colorWheelsDynamicWrapper');
+    if (!wheelsWrapper) {
+        wheelsWrapper = document.createElement('div');
+        wheelsWrapper.id = 'colorWheelsDynamicWrapper';
+        wheelsWrapper.className = 'space-y-12';
+        
+        // Sisipkan sebelum kotak info hover
+        const hoverInfo = document.getElementById('wheelHoverInfo');
+        const parentBox = hoverInfo ? hoverInfo.parentNode : container;
+        parentBox.insertBefore(wheelsWrapper, hoverInfo);
+    }
 
-    for (let i = 0; i < totalSlices; i++) {
-        const juzNum = i + 1;
-        const startAngle = (i * 360 / totalSlices) - 90;
-        const endAngle = ((i + 1) * 360 / totalSlices) - 90;
+    wheelsWrapper.innerHTML = '';
 
-        const x1 = cx + rOuter * Math.cos(Math.PI * startAngle / 180);
-        const y1 = cy + rOuter * Math.sin(Math.PI * startAngle / 180);
-        const x2 = cx + rOuter * Math.cos(Math.PI * endAngle / 180);
-        const y2 = cy + rOuter * Math.sin(Math.PI * endAngle / 180);
+    // Hitung jumlah kelompok liqo berdasarkan total peserta (1 kelompok = 30 peserta)
+    const totalParticipants = assignedParticipants.length;
+    const totalGroups = Math.max(1, Math.ceil(totalParticipants / 30));
 
-        const x3 = cx + rInner * Math.cos(Math.PI * endAngle / 180);
-        const y3 = cy + rInner * Math.sin(Math.PI * endAngle / 180);
-        const x4 = cx + rInner * Math.cos(Math.PI * startAngle / 180);
-        const y4 = cy + rInner * Math.sin(Math.PI * startAngle / 180);
+    const currentWeekNum = getElapsedWeeks() + 1;
+    
+    // Ambil nama bulan dan tahun saat ini dalam Bahasa Indonesia
+    const monthsName = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+    const now = new Date();
+    const currentMonthStr = monthsName[now.getMonth()];
+    const currentYearStr = now.getFullYear();
 
-        const hue = (i * 360 / 30);
-        const pathData = `M ${x1} ${y1} A ${rOuter} ${rOuter} 0 0 1 ${x2} ${y2} L ${x3} ${y3} A ${rInner} ${rInner} 0 0 0 ${x4} ${y4} Z`;
+    // Loop pembuatan roda warna untuk setiap Kelompok Liqo Tilawah
+    for (let g = 1; g <= totalGroups; g++) {
+        const groupCardBox = document.createElement('div');
+        groupCardBox.className = 'bg-slate-900/90 border border-slate-800 rounded-2xl p-6 text-center space-y-4 max-w-xl mx-auto shadow-xl';
 
-        const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-        path.setAttribute("d", pathData);
-        path.setAttribute("fill", `hsl(${hue}, 85%, 50%)`);
-        path.setAttribute("class", "wheel-slice");
+        // Judul & Sub-judul per Kelompok
+        groupCardBox.innerHTML = `
+            <div>
+                <h2 class="text-2xl font-extrabold text-amber-400">One Week One Juz Progress</h2>
+                <p class="text-xs text-slate-400 mt-1">Status Capaian Tilawah 30 Juz Liqo Tilawah ${g} Pekan Ke-${currentWeekNum}, Bulan ${currentMonthStr}, Tahun ${currentYearStr}</p>
+            </div>
+            <div class="relative w-full max-w-md mx-auto aspect-square flex items-center justify-center p-2">
+                <svg id="colorWheelSvg_${g}" viewBox="0 0 500 500" class="w-full h-full drop-shadow-2xl"></svg>
+                <div class="absolute inset-0 m-auto w-28 h-28 md:w-36 md:h-36 bg-slate-950/95 rounded-full border-2 border-amber-500/30 flex flex-col items-center justify-center p-2 text-center backdrop-blur-md shadow-inner">
+                    <span id="wheelTotalPercent_${g}" class="text-2xl md:text-3xl font-black text-amber-400">0%</span>
+                    <span class="text-[9px] md:text-[10px] text-slate-300 font-semibold mt-0.5">Total Khatam/minggu</span>
+                </div>
+            </div>
+        `;
 
-        path.addEventListener("mouseenter", () => {
-            const hoverInfo = document.getElementById("wheelHoverInfo");
-            if (hoverInfo) {
-                hoverInfo.innerHTML = `<strong>JUZ ${juzNum}</strong> | Status: Progres Aktif Pekan Ini`;
+        wheelsWrapper.appendChild(groupCardBox);
+
+        // Render SVG Color Wheel untuk kelompok ke-g
+        const svg = document.getElementById(`colorWheelSvg_${g}`);
+        if (!svg) continue;
+
+        const cx = 250, cy = 250, rOuter = 210, rInner = 45; // Lingkaran tengah diperkecil lagi (rInner = 45)
+        const totalSlices = 30;
+        let totalAccumulatedPercent = 0;
+
+        const startIndex = (g - 1) * 30;
+
+        for (let i = 0; i < totalSlices; i++) {
+            const juzNum = i + 1;
+            const globalParticipantIdx = startIndex + i;
+            
+            // Cek apakah slot peserta ada & hitung progresnya
+            const juzCard = document.getElementById(`juz-btn-${juzNum}`);
+            let percent = 0;
+            
+            // Jika kelompok > 1, kita cek card berdasarkan rentang grup
+            const targetJuzCard = (g === 1) ? document.getElementById(`juz-btn-${juzNum}`) : document.querySelectorAll('.juz-card-box')[startIndex + i];
+            
+            if (targetJuzCard) {
+                const totalSurahs = targetJuzCard.querySelectorAll('.surah-card').length;
+                const completedSurahs = targetJuzCard.querySelectorAll('.surah-card.completed').length;
+                if (totalSurahs > 0) {
+                    percent = Math.round((completedSurahs / totalSurahs) * 100);
+                }
             }
-        });
+            totalAccumulatedPercent += percent;
 
-        svg.appendChild(path);
+            const startAngle = (i * 360 / totalSlices) - 90;
+            const endAngle = ((i + 1) * 360 / totalSlices) - 90;
+            const midAngle = (startAngle + endAngle) / 2;
+
+            const hue = (i * 360 / 30);
+            const baseColor = `hsl(${hue}, 85%, 50%)`;
+
+            // 1. Kelopak Background
+            const x1 = cx + rOuter * Math.cos(Math.PI * startAngle / 180);
+            const y1 = cy + rOuter * Math.sin(Math.PI * startAngle / 180);
+            const x2 = cx + rOuter * Math.cos(Math.PI * endAngle / 180);
+            const y2 = cy + rOuter * Math.sin(Math.PI * endAngle / 180);
+            const x3 = cx + rInner * Math.cos(Math.PI * endAngle / 180);
+            const y3 = cy + rInner * Math.sin(Math.PI * endAngle / 180);
+            const x4 = cx + rInner * Math.cos(Math.PI * startAngle / 180);
+            const y4 = cy + rInner * Math.sin(Math.PI * startAngle / 180);
+
+            const bgPathData = `M ${x1} ${y1} A ${rOuter} ${rOuter} 0 0 1 ${x2} ${y2} L ${x3} ${y3} A ${rInner} ${rInner} 0 0 0 ${x4} ${y4} Z`;
+            
+            const bgPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+            bgPath.setAttribute("d", bgPathData);
+            bgPath.setAttribute("fill", baseColor);
+            bgPath.setAttribute("opacity", "0.15");
+            svg.appendChild(bgPath);
+
+            // 2. Batang Progres Dinamis Sesuai Persentase (%)
+            if (percent > 0) {
+                const dynamicRadius = rInner + ((rOuter - rInner) * (percent / 100));
+                const dx1 = cx + dynamicRadius * Math.cos(Math.PI * startAngle / 180);
+                const dy1 = cy + dynamicRadius * Math.sin(Math.PI * startAngle / 180);
+                const dx2 = cx + dynamicRadius * Math.cos(Math.PI * endAngle / 180);
+                const dy2 = cy + dynamicRadius * Math.sin(Math.PI * endAngle / 180);
+
+                const fillPathData = `M ${dx1} ${dy1} A ${dynamicRadius} ${dynamicRadius} 0 0 1 ${dx2} ${dy2} L ${x3} ${y3} A ${rInner} ${rInner} 0 0 0 ${x4} ${y4} Z`;
+                
+                const fillPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                fillPath.setAttribute("d", fillPathData);
+                fillPath.setAttribute("fill", baseColor);
+                fillPath.setAttribute("class", "wheel-slice transition-all duration-300");
+                svg.appendChild(fillPath);
+
+                // Angka persentase di ujung batang progres kelopak
+                const textProgRadius = dynamicRadius - 14;
+                const tpx = cx + textProgRadius * Math.cos(Math.PI * midAngle / 180);
+                const tpy = cy + textProgRadius * Math.sin(Math.PI * midAngle / 180);
+
+                const progText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                progText.setAttribute("x", tpx);
+                progText.setAttribute("y", tpy);
+                progText.setAttribute("fill", "#0f172a");
+                progText.setAttribute("font-size", "9px");
+                progText.setAttribute("font-weight", "bold");
+                progText.setAttribute("text-anchor", "middle");
+                progText.setAttribute("dominant-baseline", "central");
+                progText.setAttribute("transform", `rotate(${midAngle + 90}, ${tpx}, ${tpy})`);
+                progText.textContent = `${percent}%`;
+                svg.appendChild(progText);
+            }
+
+            // 3. Nama/Nomor Juz di Luar Lingkaran (Warna disamakan dengan kelopaknya)
+            const outTextRadius = rOuter + 18;
+            const otx = cx + outTextRadius * Math.cos(Math.PI * midAngle / 180);
+            const oty = cy + outTextRadius * Math.sin(Math.PI * midAngle / 180);
+
+            const outText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+            outText.setAttribute("x", otx);
+            outText.setAttribute("y", oty);
+            outText.setAttribute("fill", baseColor);
+            outText.setAttribute("font-size", "10px");
+            outText.setAttribute("font-weight", "bold");
+            outText.setAttribute("text-anchor", "middle");
+            outText.setAttribute("dominant-baseline", "central");
+            outText.setAttribute("transform", `rotate(${midAngle + 90}, ${otx}, ${oty})`);
+            outText.textContent = `JUZ ${juzNum}`;
+            svg.appendChild(outText);
+
+            // Event Hover Info
+            bgPath.addEventListener("mouseenter", () => {
+                const hoverInfo = document.getElementById("wheelHoverInfo");
+                if (hoverInfo) {
+                    hoverInfo.innerHTML = `<strong>LIQO ${g} - JUZ ${juzNum}</strong> | Capaian: ${percent}% Selesai`;
+                }
+            });
+        }
+
+        // Set Persentase Rata-rata di Lingkaran Tengah
+        const groupAveragePercent = Math.round(totalAccumulatedPercent / 30);
+        const groupPercentEl = document.getElementById(`wheelTotalPercent_${g}`);
+        if (groupPercentEl) {
+            groupPercentEl.innerText = `${groupAveragePercent}%`;
+        }
     }
 }
 
-function updateYearlyStats() {
-    const totalKhatam = document.getElementById("yearlyTotalKhatam");
-    const disciplineRate = document.getElementById("yearlyDisciplineRate");
-    const currentWeekNum = document.getElementById("yearlyCurrentWeekNum");
+// ==========================================
+// INTEGRASI REAL-TIME LAPORAN TAHUNAN & LEADERBOARD
+// ==========================================
+async function updateYearlyStats() {
+    const totalKhatamEl = document.getElementById("yearlyTotalKhatam");
+    const disciplineRateEl = document.getElementById("yearlyDisciplineRate");
+    const currentWeekNumEl = document.getElementById("yearlyCurrentWeekNum");
+    const leaderboardBody = document.getElementById("yearlyLeaderboardBody");
+    const earlyBirdsContainer = document.getElementById("earlyBirdsContainer");
 
     const currentWeek = getElapsedWeeks() + 1;
-    if (totalKhatam) totalKhatam.innerText = `${Math.floor(currentWeek / 30)} Kali`;
-    if (disciplineRate) disciplineRate.innerText = `94%`;
-    if (currentWeekNum) currentWeekNum.innerText = `Pekan ${currentWeek}`;
+    if (currentWeekNumEl) currentWeekNumEl.innerText = `Pekan ${currentWeek}`;
+
+    if (!window.firebaseDb) return;
+
+    try {
+        const { collection, getDocs } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js");
+        const snap = await getDocs(collection(window.firebaseDb, "tilawah_reports"));
+
+        const reports = [];
+        const userReportCount = {};
+        const earlyBirdCount = {};
+
+        snap.forEach(docSnap => {
+            const data = docSnap.data();
+            reports.push(data);
+
+            const userName = (data.nama || "Alumni").toUpperCase();
+            userReportCount[userName] = (userReportCount[userName] || 0) + 1;
+
+            // Cek apakah laporan dilakukan di hari Senin/Selasa (Early Birds)
+            if (data.timestamp) {
+                const reportDate = new Date(data.timestamp);
+                const day = reportDate.getDay(); // 1 = Senin, 2 = Selasa
+                if (day === 1 || day === 2) {
+                    earlyBirdCount[userName] = (earlyBirdCount[userName] || 0) + 1;
+                }
+            }
+        });
+
+        // 1. Hitung Total Khatam Angkatan (Setiap 30 Juz selesai dalam 1 pekan)
+        const weekJuzCompleted = {};
+        reports.forEach(r => {
+            const key = `pekan_${r.pekan}_juz_${r.juz}`;
+            weekJuzCompleted[key] = true;
+        });
+
+        let totalKhatamCount = 0;
+        for (let w = 1; w <= currentWeek; w++) {
+            let juzInWeekCount = 0;
+            for (let j = 1; j <= 30; j++) {
+                if (weekJuzCompleted[`pekan_${w}_juz_${j}`]) {
+                    juzInWeekCount++;
+                }
+            }
+            if (juzInWeekCount === 30) totalKhatamCount++;
+        }
+
+        if (totalKhatamEl) totalKhatamEl.innerText = `${totalKhatamCount} Kali`;
+
+        // 2. Hitung Tingkat Disiplin Angkatan (Rasio Surat Selesai vs Target Laporan)
+        const totalTargetReports = assignedParticipants.length * 30 * currentWeek; // estimasi total kapasitas
+        const totalActualReports = reports.length;
+        const disciplinePercent = totalTargetReports > 0 ? Math.min(100, Math.round((totalActualReports / Math.max(1, assignedParticipants.length * currentWeek)) * 100)) : 0;
+
+        if (disciplineRateEl) disciplineRateEl.innerText = `${disciplinePercent}%`;
+
+        // 3. Render Leaderboard Peserta Paling Rajin
+        const sortedLeaderboard = Object.entries(userReportCount)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 5);
+
+        if (leaderboardBody) {
+            if (sortedLeaderboard.length === 0) {
+                leaderboardBody.innerHTML = `<tr><td colspan="4" class="py-6 text-center text-slate-500">Belum ada riwayat laporan yang masuk.</td></tr>`;
+            } else {
+                const badges = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣'];
+                leaderboardBody.innerHTML = sortedLeaderboard.map(([name, count], idx) => `
+                    <tr class="hover:bg-slate-900/50 transition">
+                        <td class="py-2.5 font-bold text-amber-400">${badges[idx] || idx + 1} Rank ${idx + 1}</td>
+                        <td class="py-2.5 font-semibold text-white">${name}</td>
+                        <td class="py-2.5 text-center font-bold text-emerald-400">${count} Surat</td>
+                        <td class="py-2.5 text-right"><span class="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-bold px-2 py-0.5 rounded-md">Istiqomah</span></td>
+                    </tr>
+                `).join('');
+            }
+        }
+
+        // 4. Render Early Birds
+        const sortedEarlyBirds = Object.entries(earlyBirdCount)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 3);
+
+        if (earlyBirdsContainer) {
+            if (sortedEarlyBirds.length === 0) {
+                earlyBirdsContainer.innerHTML = `<div class="text-center py-4 text-slate-500 text-xs">Belum ada peserta yang melapor di awal pekan.</div>`;
+            } else {
+                earlyBirdsContainer.innerHTML = sortedEarlyBirds.map(([name, count]) => `
+                    <div class="flex items-center justify-between bg-slate-900/80 border border-slate-800 p-2.5 rounded-xl">
+                        <div class="flex items-center gap-2.5">
+                            <div class="w-7 h-7 rounded-lg bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 font-bold text-xs">
+                                ⚡
+                            </div>
+                            <span class="text-xs font-bold text-slate-200">${name}</span>
+                        </div>
+                        <span class="text-[11px] font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-lg border border-amber-500/20">${count}x Cepat</span>
+                    </div>
+                `).join('');
+            }
+        }
+
+    } catch (err) {
+        console.error("Gagal mengkalkulasi laporan tahunan:", err);
+    }
 }
 
 // ==========================================
@@ -777,11 +1010,12 @@ async function executeUnreportSurah(juzNumber, suratName, element) {
     const subTitleEl = element.querySelector('.surah-ayat');
     const numEl = element.querySelector('.surah-number');
     
-    if (titleEl) { titleEl.classList.remove('text-[#080c1d]'); titleEl.classList.add('text-white'); }
-    if (subTitleEl) { subTitleEl.classList.remove('text-[#1e293b]'); subTitleEl.classList.add('text-slate-400'); }
+    // Saat di-unreport, kembalikan ke warna #8698b5
+    if (titleEl) { titleEl.classList.remove('text-[#080c1d]'); titleEl.classList.add('text-[#8698b5]'); }
+    if (subTitleEl) { subTitleEl.classList.remove('text-[#1e293b]'); subTitleEl.classList.add('text-[#8698b5]/80'); }
     if (numEl) { 
         numEl.classList.remove('text-[#080c1d]'); 
-        numEl.classList.add('text-amber-400'); 
+        numEl.classList.add('text-[#8698b5]'); 
     }
 
     const timeBadge = element.querySelector('.surat-time-badge');
@@ -802,7 +1036,6 @@ async function executeUnreportSurah(juzNumber, suratName, element) {
         if (progressBar) progressBar.style.width = `${percent}%`;
     }
 
-    // HAPUS DARI FIREBASE AGAR STATUS PUTIHNYA IKUT HILANG PERMANEN
     const currentWeek = getElapsedWeeks() + 1;
     try {
         if (window.firebaseDb) {

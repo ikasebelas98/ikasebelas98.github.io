@@ -65,19 +65,19 @@
         <div class="bg-slate-900 border-b border-slate-800 sticky top-16 z-40 shadow-md">
             <div class="max-w-[1920px] mx-auto px-2">
                 <div class="grid grid-cols-2 md:grid-cols-4 text-center font-bold text-xs md:text-sm uppercase tracking-wider" id="tabContainer">
-    <button onclick="switchTab('tab1')" id="btnTab1" class="tab-btn-bar">
-        PESERTA TILAWAH
-    </button>
-    <button onclick="switchTab('tab2')" id="btnTab2" class="tab-btn-bar active">
-        ONE WEEK ONE JUZ
-    </button>
-    <button onclick="switchTab('tab3')" id="btnTab3" class="tab-btn-bar">
-        PROGRESS TILAWAH
-    </button>
-    <button onclick="switchTab('tab4')" id="btnTab4" class="tab-btn-bar">
-        LAPORAN TAHUNAN
-    </button>
-</div>
+                    <button onclick="switchTab('tab1')" id="btnTab1" class="tab-btn-bar">
+                        PESERTA TILAWAH
+                    </button>
+                    <button onclick="switchTab('tab2')" id="btnTab2" class="tab-btn-bar active">
+                        LIQO TILAWAH 1
+                    </button>
+                    <button onclick="switchTab('tab3')" id="btnTab3" class="tab-btn-bar">
+                        PROGRES MINGGUAN
+                    </button>
+                    <button onclick="switchTab('tab4')" id="btnTab4" class="tab-btn-bar">
+                        LAPORAN TAHUNAN
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -188,67 +188,103 @@
     </div>
 </div>
 
-            <!-- TAB 2: ONE WEEK ONE JUZ -->
-<div id="tab2" class="tab-content block space-y-4">
-    <!-- Wadah Tombol Kelompok Tilawah Dinamis -->
-    <div id="tilawahTabsContainer" class="flex flex-wrap items-center justify-center gap-2 pb-2"></div>
+            <!-- TAB 2: LIQO TILAWAH -->
+            <div id="tab2" class="tab-content block space-y-4">
+                <!-- Wadah Tombol Liqo Tilawah Dinamis (Liqo Tilawah 1, 2, dst.) -->
+                <div id="tilawahTabsContainer" class="flex flex-wrap items-center justify-center gap-2 pb-2"></div>
 
-    <!-- GRID CONTAINER 3 KOLOM BERDERET -->
-    <div id="juzGrid30Container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <!-- 30 CARD JUZ AKAN DI-RENDER OTOMATIS OLEH JAVASCRIPT -->
+                <!-- GRID CONTAINER 3 KOLOM BERDERET -->
+                <div id="juzGrid30Container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <!-- 30 CARD JUZ AKAN DI-RENDER OTOMATIS OLEH JAVASCRIPT -->
+                </div>
+            </div>
+
+            <!-- TAB 3: PROGRES MINGGUAN -->
+<div id="tab3" class="tab-content hidden">
+    <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 text-center space-y-8">
+        <!-- Tempat info hover atau wadah dinamis -->
+        <div id="wheelHoverInfo" class="bg-slate-800/90 border border-amber-500/30 rounded-xl p-3 text-xs text-slate-300 max-w-sm mx-auto">
+            Arahkan kursor atau sentuh kelopak Juz pada roda warna di atas untuk melihat detail progres.
+        </div>
     </div>
 </div>
 
-            <!-- TAB 3: ONE WEEK PROGRESS (COLOR WHEEL) -->
-            <div id="tab3" class="tab-content hidden">
-                <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 text-center space-y-8">
-                    <div>
-                        <h2 class="text-2xl font-extrabold text-amber-400">Color Wheel Progress OWOJ</h2>
-                        <p class="text-xs text-slate-400 mt-1">Status capaian tilawah 30 Juz seluruh kelompok pekan ini secara visual.</p>
-                    </div>
-
-                    <div class="relative w-full max-w-lg mx-auto aspect-square flex items-center justify-center p-4">
-                        <svg id="colorWheelSvg" viewBox="0 0 500 500" class="w-full h-full drop-shadow-2xl"></svg>
-
-                        <div class="absolute inset-0 m-auto w-36 h-36 md:w-44 md:h-44 bg-slate-950/90 rounded-full border-2 border-amber-500/30 flex flex-col items-center justify-center p-2 text-center backdrop-blur-md shadow-inner">
-                            <span class="text-[10px] md:text-xs text-slate-400 font-medium">TOTAL PEKAN INI</span>
-                            <span id="wheelTotalPercent" class="text-2xl md:text-3xl font-black text-amber-400 my-0.5">0%</span>
-                            <span class="text-[9px] md:text-[10px] text-slate-400">Target Group Khatam</span>
-                        </div>
-                    </div>
-
-                    <div id="wheelHoverInfo" class="bg-slate-800/90 border border-amber-500/30 rounded-xl p-3 text-xs text-slate-300 max-w-sm mx-auto">
-                        Arahkan kursor atau sentuh kelopak Juz pada roda warna di atas untuk melihat detail progres.
-                    </div>
-                </div>
-            </div>
-
             <!-- TAB 4: LAPORAN TAHUNAN -->
-            <div id="tab4" class="tab-content hidden">
-                <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 space-y-6">
-                    <div>
-                        <h2 class="text-xl font-bold text-amber-400">Laporan & Analytic Tahunan OWOJ</h2>
-                        <p class="text-xs text-slate-400">Rekapitulasi pencapaian target khatam bersama sepanjang 52 pekan.</p>
-                    </div>
+<div id="tab4" class="tab-content hidden">
+    <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 md:p-8 space-y-8 shadow-2xl">
+        <!-- Header Judul -->
+        <div>
+            <h2 class="text-2xl font-extrabold text-amber-400">Laporan & Analytic Tahunan ONE WEEK ONE JUZ</h2>
+            <p class="text-xs text-slate-400 mt-1">Rekapitulasi pencapaian target khatam bersama & statistik keaktifan alumni sepanjang tahun.</p>
+        </div>
 
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div class="bg-slate-800/50 border border-slate-700/50 p-4 rounded-xl text-center space-y-1">
-                            <span class="text-xs text-slate-400">Total Khatam Grup</span>
-                            <h4 id="yearlyTotalKhatam" class="text-3xl font-black text-amber-400">0 Kali</h4>
-                        </div>
-                        <div class="bg-slate-800/50 border border-slate-700/50 p-4 rounded-xl text-center space-y-1">
-                            <span class="text-xs text-slate-400">Tingkat Disiplin Kelompok</span>
-                            <h4 id="yearlyDisciplineRate" class="text-3xl font-black text-emerald-400">0%</h4>
-                        </div>
-                        <div class="bg-slate-800/50 border border-slate-700/50 p-4 rounded-xl text-center space-y-1">
-                            <span class="text-xs text-slate-400">Pekan Berlangsung</span>
-                            <h4 id="yearlyCurrentWeekNum" class="text-3xl font-black text-sky-400">Pekan --</h4>
-                        </div>
-                    </div>
+        <!-- 3 Kartu Utama Metrik -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="bg-slate-800/60 border border-slate-700/60 p-5 rounded-2xl text-center space-y-1 shadow-md">
+                <span class="text-xs text-slate-400 uppercase font-semibold tracking-wider">Total Khatam Angkatan</span>
+                <h4 id="yearlyTotalKhatam" class="text-3xl md:text-4xl font-black text-amber-400">0 Kali</h4>
+            </div>
+            <div class="bg-slate-800/60 border border-slate-700/60 p-5 rounded-2xl text-center space-y-1 shadow-md">
+                <span class="text-xs text-slate-400 uppercase font-semibold tracking-wider">Tingkat Disiplin Angkatan</span>
+                <h4 id="yearlyDisciplineRate" class="text-3xl md:text-4xl font-black text-emerald-400">0%</h4>
+            </div>
+            <div class="bg-slate-800/60 border border-slate-700/60 p-5 rounded-2xl text-center space-y-1 shadow-md">
+                <span class="text-xs text-slate-400 uppercase font-semibold tracking-wider">Pekan Berlangsung</span>
+                <h4 id="yearlyCurrentWeekNum" class="text-3xl md:text-4xl font-black text-sky-400">Pekan --</h4>
+            </div>
+        </div>
+
+        <!-- Section Hall of Fame & Statistik Keaktifan -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-2">
+            <!-- Tabel Leaderboard Peserta Paling Rajin -->
+            <div class="bg-slate-950/60 border border-slate-800 rounded-2xl p-5 space-y-4">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                    <h3 class="text-sm font-bold text-amber-400 flex items-center gap-2">
+                        <i class="fa-solid fa-trophy text-amber-400 text-base"></i> Leaderboard Peserta Terajin
+                    </h3>
+                    <span class="text-[10px] bg-amber-500/10 text-amber-400 px-2.5 py-1 rounded-full font-semibold border border-amber-500/20">Akumulasi Laporan</span>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs text-slate-300">
+                        <thead class="text-slate-500 border-b border-slate-800 uppercase font-bold text-[10px]">
+                            <tr>
+                                <th class="pb-2">Peringkat</th>
+                                <th class="pb-2">Nama Alumni</th>
+                                <th class="pb-2 text-center">Total Surat Selesai</th>
+                                <th class="pb-2 text-right">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="yearlyLeaderboardBody" class="divide-y divide-slate-800/40">
+                            <tr>
+                                <td colspan="4" class="py-6 text-center text-slate-500">Memuat data kedisiplinan...</td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
 
+            <!-- Kartu Rekor Kecepatan & Early Birds -->
+            <div class="bg-slate-950/60 border border-slate-800 rounded-2xl p-5 space-y-4 flex flex-col justify-between">
+                <div>
+                    <div class="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
+                        <h3 class="text-sm font-bold text-emerald-400 flex items-center gap-2">
+                            <i class="fa-solid fa-bolt text-emerald-400 text-base"></i> Early Birds (Tercepat Lapor)
+                        </h3>
+                        <span class="text-[10px] bg-emerald-500/10 text-emerald-400 px-2.5 py-1 rounded-full font-semibold border border-emerald-500/20">Laporan Awal Pekan</span>
+                    </div>
+                    <p class="text-xs text-slate-400 mb-4">Alumni yang paling sering merampungkan dan melaporkan tilawahnya di hari Senin atau awal pekan:</p>
+                    <div id="earlyBirdsContainer" class="space-y-2.5">
+                        <div class="text-center py-6 text-slate-500 text-xs">Menganalisis rekor kecepatan...</div>
+                    </div>
+                </div>
+
+                <div class="bg-slate-900 border border-slate-800 p-3 rounded-xl text-[11px] text-slate-400 text-center mt-4">
+                    💡 <span class="text-slate-300 font-semibold">Tips Istiqomah:</span> Laporan yang diisi sebelum hari Ahad membantu meningkatkan persentase khatam kelompok!
+                </div>
+            </div>
         </div>
+    </div>
+</div>
     </main>
 
     <!-- FOOTER VISITOR COUNTER -->
