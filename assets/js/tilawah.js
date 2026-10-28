@@ -121,6 +121,11 @@ window.initTilawahDashboard = async function(user, namaPanggilan) {
     renderTab1Participants();
     renderTilawahTabs();
     renderActiveJuzCards(user);
+    
+    // LOAD REPORT YANG SUDAH TERSIMPAN DI FIREBASE
+    const currentWeek = getElapsedWeeks() + 1;
+    await loadExistingReports(currentWeek);
+
     renderColorWheel();
     updateYearlyStats();
 };
@@ -293,7 +298,6 @@ function renderActiveJuzCards(currentUser) {
         `;
 
         surahs.forEach((s) => {
-            // Amankan tanda petik satu pada nama surat (seperti An-Nisa' atau Ali 'Imran)
             const safeSurahName = s.name.replace(/'/g, "\\'");
 
             htmlContent += `
@@ -334,10 +338,11 @@ function renderActiveJuzCards(currentUser) {
 }
 
 // ==========================================
-// 3. LOGIKA HAK AKSES, REPORT & GENERATOR GAMBAR KARTU TILAWAH
+// LOGIKA HAK AKSES KLIK SURAT, REPORT & FIREBASE
 // ==========================================
 let activeJuzTarget = null;
 let activeSuratElement = null;
+let generatedReportImageUrl = "";
 
 window.handleSurahCardClick = function(assignedJuz, surahName, suratAyat, element, juzOwnerId, juzOwnerName) {
     if (!cachedAuthUser) {
@@ -358,12 +363,12 @@ window.handleSurahCardClick = function(assignedJuz, surahName, suratAyat, elemen
                           (loggedInPanggilan && loggedInPanggilan.includes(ownerNameUpper));
     const isSuperAdmin = (role === "super_admin");
 
-    // Jika BUKAN milik Anda & BUKAN super admin -> Abaikan (View-only murni tanpa respon)
+    // Jika BUKAN milik Anda & BUKAN super admin -> Abaikan (View-only murni)
     if (!isOwnerById && !isOwnerByName && !isSuperAdmin) {
         return;
     }
 
-    // Cek Unreport jika surat sudah selesai
+    // Cek Unreport jika sudah selesai
     const isAlreadyCompleted = element.classList.contains("completed");
     if (isAlreadyCompleted) {
         const confirmUnreport = confirm("Apakah anda ingin menghapus report bacaan anda?");
@@ -376,39 +381,6 @@ window.handleSurahCardClick = function(assignedJuz, surahName, suratAyat, elemen
     // Buka Modal Konfirmasi Report
     triggerReportTilawah(assignedJuz, surahName, suratAyat, element);
 };
-
-function executeUnreportSurah(juzNumber, surahName, element) {
-    element.classList.remove("completed");
-
-    const titleEl = element.querySelector('.surah-title');
-    const subTitleEl = element.querySelector('.surah-ayat');
-    const numEl = element.querySelector('.surah-number');
-    
-    if (titleEl) { titleEl.classList.remove('text-[#080c1d]'); titleEl.classList.add('text-white'); }
-    if (subTitleEl) { subTitleEl.classList.remove('text-[#1e293b]'); subTitleEl.classList.add('text-slate-400'); }
-    if (numEl) { 
-        numEl.classList.remove('text-[#080c1d]'); 
-        numEl.classList.add('text-amber-400'); 
-    }
-
-    const timeBadge = element.querySelector('.surat-time-badge');
-    if (timeBadge) {
-        timeBadge.classList.add("hidden");
-    }
-
-    const cardBox = element.closest('.juz-card-box');
-    if (cardBox) {
-        const totalSurahs = cardBox.querySelectorAll('.surah-card').length;
-        const completedSurahs = cardBox.querySelectorAll('.surah-card.completed').length;
-        const percent = Math.round((completedSurahs / totalSurahs) * 100);
-
-        const percentText = cardBox.querySelector('.progress-text');
-        const progressBar = cardBox.querySelector('.progress-bar-fill');
-
-        if (percentText) percentText.innerText = `${percent}%`;
-        if (progressBar) progressBar.style.width = `${percent}%`;
-    }
-}
 
 window.triggerReportTilawah = function(juzNumber, suratName, suratAyat, element) {
     activeJuzTarget = { juzNumber, suratName, suratAyat };
@@ -436,6 +408,7 @@ document.getElementById("cancelReportBtn")?.addEventListener("click", () => {
     activeSuratElement = null;
 });
 
+// Eksekusi saat konfirmasi "Ya" laporan ditekan
 document.getElementById("yesReportBtn")?.addEventListener("click", async () => {
     if (!activeJuzTarget || !activeSuratElement) return;
 
@@ -451,11 +424,45 @@ document.getElementById("yesReportBtn")?.addEventListener("click", async () => {
     const optionsTime = { hour: '2-digit', minute: '2-digit', hour12: false };
     const currentTime = "jam : " + new Date().toLocaleTimeString('id-ID', optionsTime);
 
-    activeSuratElement.classList.add("completed");
+    // Terapkan visual kartu selesai (berwarna putih)
+    applySurahCompletedVisual(activeSuratElement, currentDate, currentTime);
 
-    const titleEl = activeSuratElement.querySelector('.surah-title');
-    const subTitleEl = activeSuratElement.querySelector('.surah-ayat');
-    const numEl = activeSuratElement.querySelector('.surah-number');
+    // Simpan permanen ke Firebase Firestore agar tidak hilang saat di-refresh
+    const currentWeek = getElapsedWeeks() + 1;
+    const juzNum = activeJuzTarget.juzNumber;
+    const suratName = activeJuzTarget.suratName;
+
+    try {
+        if (window.firebaseDb) {
+            const { doc, setDoc } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js");
+            const reportRef = doc(window.firebaseDb, "tilawah_reports", `pekan_${currentWeek}_juz_${juzNum}`);
+            
+            await setDoc(reportRef, {
+                pekan: currentWeek,
+                juz: juzNum,
+                surat: suratName,
+                userId: cachedAuthUser ? cachedAuthUser.uid : "",
+                nama: cachedNamaPanggilan,
+                tanggal: currentDate,
+                waktu: currentTime,
+                timestamp: new Date().toISOString()
+            }, { merge: true });
+        }
+    } catch (err) {
+        console.error("Gagal menyimpan report ke Firebase:", err);
+    }
+    
+    // Tampilkan modal banner preview WhatsApp
+    showWhatsappModal(activeJuzTarget.juzNumber, activeJuzTarget.suratName, currentDate, currentTime);
+});
+
+// Fungsi pembantu untuk mengubah visual kartu menjadi selesai
+function applySurahCompletedVisual(element, dateStr, timeStr) {
+    element.classList.add("completed");
+
+    const titleEl = element.querySelector('.surah-title');
+    const subTitleEl = element.querySelector('.surah-ayat');
+    const numEl = element.querySelector('.surah-number');
     
     if (titleEl) { titleEl.classList.remove('text-white'); titleEl.classList.add('text-[#080c1d]'); }
     if (subTitleEl) { subTitleEl.classList.remove('text-slate-400'); subTitleEl.classList.add('text-[#1e293b]'); }
@@ -464,14 +471,14 @@ document.getElementById("yesReportBtn")?.addEventListener("click", async () => {
         numEl.classList.add('text-[#080c1d]'); 
     }
 
-    const timeBadge = activeSuratElement.querySelector('.surat-time-badge');
+    const timeBadge = element.querySelector('.surat-time-badge');
     if (timeBadge) {
-        timeBadge.querySelector('.date-text').innerText = currentDate;
-        timeBadge.querySelector('.time-text').innerText = currentTime;
+        timeBadge.querySelector('.date-text').innerText = dateStr;
+        timeBadge.querySelector('.time-text').innerText = timeStr;
         timeBadge.classList.remove("hidden");
     }
 
-    const cardBox = activeSuratElement.closest('.juz-card-box');
+    const cardBox = element.closest('.juz-card-box');
     if (cardBox) {
         const totalSurahs = cardBox.querySelectorAll('.surah-card').length;
         const completedSurahs = cardBox.querySelectorAll('.surah-card.completed').length;
@@ -483,81 +490,35 @@ document.getElementById("yesReportBtn")?.addEventListener("click", async () => {
         if (percentText) percentText.innerText = `${percent}%`;
         if (progressBar) progressBar.style.width = `${percent}%`;
     }
-    
-    showWhatsappModal(activeJuzTarget.juzNumber, activeJuzTarget.suratName, currentDate, currentTime);
-});
-
-// Fungsi Generator Gambar Kartu Laporan Menggunakan Background Webp
-async function generateReportImage(juzNumber, suratName, dateStr, timeStr, userName, websiteLink) {
-    return new Promise((resolve) => {
-        const canvas = document.getElementById("reportCanvas");
-        if (!canvas) {
-            resolve(null);
-            return;
-        }
-        const ctx = canvas.getContext("2d");
-
-        const bgImg = new Image();
-        bgImg.crossOrigin = "anonymous";
-        bgImg.src = "assets/images/back-report-tilawah.webp";
-
-        bgImg.onload = function () {
-            ctx.drawImage(bgImg, 0, 0, canvas.width, canvas.height);
-
-            ctx.textAlign = "center";
-            ctx.fillStyle = "#1e293b";
-
-            // Teks Pengantar
-            ctx.font = "500 36px sans-serif";
-            ctx.fillText("Alhamdulillah, saya", canvas.width / 2, 750);
-
-            ctx.font = "bold 46px sans-serif";
-            ctx.fillStyle = "#0f172a";
-            ctx.fillText(userName, canvas.width / 2, 810);
-
-            ctx.font = "500 36px sans-serif";
-            ctx.fillStyle = "#1e293b";
-            ctx.fillText("telah menyelesaikan:", canvas.width / 2, 870);
-
-            // Teks Utama (Juz & Surat)
-            ctx.font = "bold 58px sans-serif";
-            ctx.fillStyle = "#0f172a";
-            ctx.fillText(`Juz ${juzNumber} (${suratName})`, canvas.width / 2, 990);
-
-            // Tanggal & Jam
-            ctx.font = "400 36px sans-serif";
-            ctx.fillStyle = "#334155";
-            ctx.fillText(`Tanggal: ${dateStr}`, canvas.width / 2, 1070);
-            ctx.fillText(`Jam : ${timeStr.replace('jam : ', '')}`, canvas.width / 2, 1130);
-
-            // Doa Penutup
-            ctx.font = "400 34px sans-serif";
-            ctx.fillStyle = "#1e293b";
-            ctx.fillText("Barakallahu fiikum,", canvas.width / 2, 1260);
-            ctx.fillText("semoga istiqomah dan membawa keberkahan. 🤲", canvas.width / 2, 1315);
-
-            // Link Website
-            ctx.font = "400 28px sans-serif";
-            ctx.fillStyle = "#64748b";
-            ctx.fillText("Cek progres selengkapnya di sini:", canvas.width / 2, 1430);
-
-            ctx.font = "bold 30px sans-serif";
-            ctx.fillStyle = "#0f172a";
-            ctx.fillText(websiteLink.replace(/^https?:\/\//, ''), canvas.width / 2, 1480);
-
-            const dataUrl = canvas.toDataURL("image/webp", 0.9);
-            resolve(dataUrl);
-        };
-
-        bgImg.onerror = function() {
-            console.error("Gagal memuat background report image.");
-            resolve(null);
-        };
-    });
 }
 
-let generatedReportImageUrl = "";
+// Fungsi memuat riwayat report dari Firebase saat halaman dibuka/di-refresh
+async function loadExistingReports(currentWeek) {
+    if (!window.firebaseDb) return;
+    try {
+        const { collection, getDocs, query, where } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js");
+        const q = query(collection(window.firebaseDb, "tilawah_reports"), where("pekan", "==", currentWeek));
+        const querySnapshot = await getDocs(q);
 
+        querySnapshot.forEach((docSnap) => {
+            const data = docSnap.data();
+            const juzCard = document.getElementById(`juz-btn-${data.juz}`);
+            if (juzCard) {
+                const surahCards = juzCard.querySelectorAll('.surah-card');
+                surahCards.forEach((sc) => {
+                    const title = sc.querySelector('.surah-title')?.innerText;
+                    if (title === data.surat) {
+                        applySurahCompletedVisual(sc, data.tanggal, data.waktu);
+                    }
+                });
+            }
+        });
+    } catch (err) {
+        console.error("Gagal memuat riwayat report:", err);
+    }
+}
+
+// Generator Gambar Banner Kartu Laporan (Menggunakan template Webp)
 async function generateReportImage(juzNumber, suratName, dateStr, timeStr, userName, websiteLink) {
     return new Promise((resolve) => {
         const canvas = document.getElementById("reportCanvas");
@@ -628,6 +589,7 @@ async function generateReportImage(juzNumber, suratName, dateStr, timeStr, userN
     });
 }
 
+// Menampilkan Modal Banner WhatsApp
 async function showWhatsappModal(juzNumber, suratName, dateStr, timeStr) {
     const waModal = document.getElementById("whatsappModal");
     const sendWaBtn = document.getElementById("sendWaBtn");
@@ -635,10 +597,8 @@ async function showWhatsappModal(juzNumber, suratName, dateStr, timeStr) {
     const userName = cachedNamaPanggilan.toUpperCase() || "ALUMNI";
     const websiteLink = window.location.href;
 
-    // Generate gambar banner secara instan di latar belakang canvas
     generatedReportImageUrl = await generateReportImage(juzNumber, suratName, dateStr, timeStr, userName, websiteLink);
 
-    // Siapkan teks untuk dibagikan ke WhatsApp
     const message = "✨ LAPORAN TILAWAH OWOJ ✨\n" +
                     "Ika SMAN 11 Bandung Angkatan '98\n\n" +
                     "Alhamdulillah, saya *" + userName + "* telah menyelesaikan:\n" +
@@ -653,16 +613,14 @@ async function showWhatsappModal(juzNumber, suratName, dateStr, timeStr) {
         sendWaBtn.href = "https://api.whatsapp.com/send?text=" + encodedMessage;
     }
 
-    // Tampilkan modal banner
     if (waModal) {
         waModal.classList.remove("hidden");
         waModal.classList.add("flex");
     }
 }
 
-// Aksi otomatis saat tombol "Kirim ke WhatsApp" ditekan:
+// Aksi otomatis saat tombol "Kirim ke WhatsApp" ditekan
 window.handleSendWhatsAppAndClose = function() {
-    // 1. Otomatis unduh gambar banner ke perangkat alumni
     if (generatedReportImageUrl) {
         const downloadLink = document.createElement("a");
         downloadLink.href = generatedReportImageUrl;
@@ -672,7 +630,6 @@ window.handleSendWhatsAppAndClose = function() {
         document.body.removeChild(downloadLink);
     }
 
-    // 2. Tutup modal secara otomatis dan kembali ke halaman dashboard
     const waModal = document.getElementById("whatsappModal");
     if (waModal) {
         waModal.classList.remove("flex");
@@ -808,4 +765,51 @@ function updateYearlyStats() {
     if (totalKhatam) totalKhatam.innerText = `${Math.floor(currentWeek / 30)} Kali`;
     if (disciplineRate) disciplineRate.innerText = `94%`;
     if (currentWeekNum) currentWeekNum.innerText = `Pekan ${currentWeek}`;
+}
+
+// ==========================================
+// FUNGSI PEMBATALAN LAPORAN (UNREPORT) & HAPUS DARI FIREBASE
+// ==========================================
+async function executeUnreportSurah(juzNumber, suratName, element) {
+    element.classList.remove("completed");
+
+    const titleEl = element.querySelector('.surah-title');
+    const subTitleEl = element.querySelector('.surah-ayat');
+    const numEl = element.querySelector('.surah-number');
+    
+    if (titleEl) { titleEl.classList.remove('text-[#080c1d]'); titleEl.classList.add('text-white'); }
+    if (subTitleEl) { subTitleEl.classList.remove('text-[#1e293b]'); subTitleEl.classList.add('text-slate-400'); }
+    if (numEl) { 
+        numEl.classList.remove('text-[#080c1d]'); 
+        numEl.classList.add('text-amber-400'); 
+    }
+
+    const timeBadge = element.querySelector('.surat-time-badge');
+    if (timeBadge) {
+        timeBadge.classList.add("hidden");
+    }
+
+    const cardBox = element.closest('.juz-card-box');
+    if (cardBox) {
+        const totalSurahs = cardBox.querySelectorAll('.surah-card').length;
+        const completedSurahs = cardBox.querySelectorAll('.surah-card.completed').length;
+        const percent = Math.round((completedSurahs / totalSurahs) * 100);
+
+        const percentText = cardBox.querySelector('.progress-text');
+        const progressBar = cardBox.querySelector('.progress-bar-fill');
+
+        if (percentText) percentText.innerText = `${percent}%`;
+        if (progressBar) progressBar.style.width = `${percent}%`;
+    }
+
+    // HAPUS DARI FIREBASE AGAR STATUS PUTIHNYA IKUT HILANG PERMANEN
+    const currentWeek = getElapsedWeeks() + 1;
+    try {
+        if (window.firebaseDb) {
+            const { doc, deleteDoc } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js");
+            await deleteDoc(doc(window.firebaseDb, "tilawah_reports", `pekan_${currentWeek}_juz_${juzNumber}`));
+        }
+    } catch (err) {
+        console.error("Gagal menghapus report dari Firebase:", err);
+    }
 }
