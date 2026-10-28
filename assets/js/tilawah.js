@@ -1,5 +1,5 @@
 /* ==========================================
-   OWOJ TILAWAH DASHBOARD ENGINE - DYNAMIC SYNCED
+   OWOJ TILAWAH DASHBOARD ENGINE - SAFE SYNC
 ========================================== */
 
 const QURAN_JUZ_DATA = {
@@ -48,30 +48,27 @@ const QURAN_JUZ_DATA = {
     ]
 };
 
-let officialStartDate = null; // Disimpan di Firestore (settings/tilawah_config)
+let officialStartDate = null;
 let allDbAlumni = [];
-let assignedParticipants = []; // Dinamis berdasarkan input peserta
+let assignedParticipants = [];
 let currentUserRole = "member";
 let cachedAuthUser = null;
+let cachedNamaPanggilan = "";
 
-// HITUNG PEKAN BERJALAN BERDASARKAN HARI SENIN RESMI SETELAH TOMBOL START DIKLIK
 function getElapsedWeeks() {
     if (!officialStartDate) return 0;
     const now = new Date();
     const start = new Date(officialStartDate);
-    
     if (now < start) return 0;
     const diffTime = now - start;
     return Math.floor(diffTime / (1000 * 60 * 60 * 24 * 7));
 }
 
-// RUMUS TUGAS JUZ: No. 1 di awal selalu mulai dari Juz 1, lalu bergeser +1 tiap Senin
 function getJuzForIndex(index) {
     const elapsedWeeks = getElapsedWeeks();
     return ((index + elapsedWeeks) % 30) + 1;
 }
 
-// SWITCH TAB UI
 window.switchTab = function(tabId) {
     document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
     document.querySelectorAll('.tab-btn-bar').forEach(btn => btn.classList.remove('active'));
@@ -83,9 +80,9 @@ window.switchTab = function(tabId) {
     if (btn) btn.classList.add('active');
 };
 
-// INITIALIZE DASHBOARD & FETCH FROM FIREBASE
 window.initTilawahDashboard = async function(user, namaPanggilan) {
     cachedAuthUser = user;
+    cachedNamaPanggilan = namaPanggilan || (user && user.email ? user.email.split('@')[0] : "");
 
     try {
         if (window.firebaseDb) {
@@ -102,19 +99,15 @@ window.initTilawahDashboard = async function(user, namaPanggilan) {
                 }
             }
 
-            // AMBIL CONFIG START
             const configDoc = await getDoc(doc(window.firebaseDb, "settings", "tilawah_config"));
             if (configDoc.exists()) {
                 officialStartDate = configDoc.data().startDate || null;
             }
 
-            // AMBIL DATA ALUMNI (Pastikan baris ini tereksekusi)
             const alumniSnap = await getDocs(collection(window.firebaseDb, "alumni"));
             allDbAlumni = [];
             alumniSnap.forEach(d => allDbAlumni.push({ id: d.id, ...d.data() }));
-            console.log("Total alumni dimuat:", allDbAlumni.length); // Cek di console F12 apakah > 0
 
-            // AMBIL PESERTA TILAWAH
             const tilawahDoc = await getDoc(doc(window.firebaseDb, "settings", "tilawah_participants"));
             if (tilawahDoc.exists() && tilawahDoc.data().participants) {
                 assignedParticipants = tilawahDoc.data().participants;
@@ -126,6 +119,7 @@ window.initTilawahDashboard = async function(user, namaPanggilan) {
 
     updateBadgeStatus();
     renderTab1Participants();
+    renderTilawahTabs();
     renderActiveJuzCards(user);
     renderColorWheel();
     updateYearlyStats();
@@ -143,13 +137,50 @@ function updateBadgeStatus() {
     }
 }
 
-// ADMIN ACTION: KLIK TOMBOL START MEMBACA
+function renderTab1Participants() {
+    const tbody = document.getElementById("participantTableBody");
+    if (!tbody) return;
+
+    if (assignedParticipants.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="p-8 text-center text-slate-500">Belum ada peserta tilawah yang terdaftar.</td></tr>`;
+        return;
+    }
+
+    const elapsedWeeks = getElapsedWeeks();
+    const isPowerUser = currentUserRole === "admin" || currentUserRole === "super_admin";
+
+    tbody.innerHTML = assignedParticipants.map((p, idx) => {
+        const assignedJuz = ((idx + elapsedWeeks) % 30) + 1;
+        const namaPanggilan = (p.namaPanggilan || "Alumni").toUpperCase();
+        const namaLengkap = p.namaLengkap || "-";
+
+        return `
+            <tr class="hover:bg-slate-800/40 transition">
+                <td class="p-3.5 font-bold text-slate-400">${idx + 1}</td>
+                <td class="p-3.5 font-semibold text-amber-400">${namaPanggilan}</td>
+                <td class="p-3.5 text-slate-300">${namaLengkap}</td>
+                <td class="p-3.5 text-center">
+                    <span class="bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-bold px-3 py-1 rounded-full">
+                        JUZ ${assignedJuz}
+                    </span>
+                </td>
+                <td class="p-3.5 text-center">
+                    ${isPowerUser ? `
+                        <button onclick="removeParticipant(${idx})" class="text-rose-400 hover:text-rose-300 transition text-xs font-bold px-2 py-1 bg-rose-500/10 rounded-lg border border-rose-500/20">
+                            <i class="fa-solid fa-trash mr-1"></i> Hapus
+                        </button>
+                    ` : `<span class="text-slate-500 text-xs">Peserta OWOJ</span>`}
+                </td>
+            </tr>
+        `;
+    }).join("");
+}
+
 window.triggerStartOwoj = async function() {
     if (!confirm("Yakin ingin memulai program OWOJ? Tanggal resmi Pekan ke-1 akan dikunci pada hari Senin terdekat.")) return;
 
-    // Cari hari Senin terdekat dari hari ini
     const now = new Date();
-    const day = now.getDay(); // 0 = Minggu, 1 = Senin, dst.
+    const day = now.getDay();
     const diffToMonday = day === 1 ? 0 : (day === 0 ? 1 : (8 - day));
     
     const mondayDate = new Date(now);
@@ -178,52 +209,36 @@ window.triggerStartOwoj = async function() {
     renderActiveJuzCards(cachedAuthUser);
 };
 
-// RENDER TAB 1: TABEL PESERTA TILAWAH (DINAMIS SESUAI JUMLAH PESERTA)
-function renderTab1Participants() {
-    const tbody = document.getElementById("participantTableBody");
-    if (!tbody) return;
+function renderTilawahTabs() {
+    const totalParticipants = assignedParticipants.length;
+    const totalGroups = Math.max(1, Math.ceil(totalParticipants / 30));
+    const container = document.getElementById('tilawahTabsContainer');
+    
+    if (!container) return;
 
-    tbody.innerHTML = "";
-
-    if (assignedParticipants.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" class="p-8 text-center text-slate-500">Belum ada peserta terdaftar. Silakan gunakan tombol "Kelola Peserta" untuk mendaftarkan peserta.</td></tr>`;
+    if (totalParticipants <= 30) {
+        container.innerHTML = '';
         return;
     }
 
-    assignedParticipants.forEach((participant, index) => {
-        const no = index + 1;
-        const assignedJuz = getJuzForIndex(index);
-
-        const tr = document.createElement("tr");
-        tr.className = "hover:bg-slate-800/40 transition";
-
-        tr.innerHTML = `
-            <td class="p-3.5 font-bold text-amber-400">${no}</td>
-            <td class="p-3.5 font-semibold text-white">${(participant.namaPanggilan || "ALUMNI").toUpperCase()}</td>
-            <td class="p-3.5 text-slate-300">${participant.namaLengkap || "-"}</td>
-            <td class="p-3.5 text-center">
-                <span class="px-3 py-1 bg-amber-500/10 border border-amber-500/30 text-amber-400 font-bold rounded-lg text-xs">
-                    Juz ${assignedJuz}
-                </span>
-            </td>
-            <td class="p-3.5 text-center">
-                <div class="flex items-center justify-center gap-2">
-                    <span class="px-2.5 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-md text-xs font-semibold">
-                        Aktif
-                    </span>
-                    ${(currentUserRole === "admin" || currentUserRole === "super_admin") ? `
-                        <button onclick="removeParticipant(${index})" title="Hapus Peserta" class="w-7 h-7 bg-red-500/20 hover:bg-red-500 text-red-400 hover:text-white rounded-lg flex items-center justify-center transition">
-                            <i class="fa-solid fa-xmark"></i>
-                        </button>
-                    ` : ''}
-                </div>
-            </td>
+    let html = '<span class="text-xs text-slate-400 font-semibold mr-2 self-center">Pilih Kelompok:</span>';
+    for (let i = 1; i <= totalGroups; i++) {
+        const isActive = (window.currentTilawahGroup || 1) === i;
+        html += `
+            <button onclick="switchTilawahGroup(${i})" class="px-4 py-1.5 rounded-lg text-xs font-bold transition ${isActive ? 'bg-amber-500 text-slate-950 shadow-md' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}" data-group="${i}">
+                KELOMPOK TILAWAH ${i}
+            </button>
         `;
-        tbody.appendChild(tr);
-    });
+    }
+    container.innerHTML = html;
 }
 
-// RENDER TAB 2: KARTU JUZ HANYA UNTUK PESERTA YANG AKTIF
+window.switchTilawahGroup = function(groupNum) {
+    window.currentTilawahGroup = groupNum;
+    renderTilawahTabs();
+    renderActiveJuzCards(cachedAuthUser);
+};
+
 function renderActiveJuzCards(currentUser) {
     const container = document.getElementById("juzGrid30Container");
     if (!container) return;
@@ -235,11 +250,28 @@ function renderActiveJuzCards(currentUser) {
         return;
     }
 
-    assignedParticipants.forEach((participant, index) => {
+    const currentGroup = window.currentTilawahGroup || 1;
+    const startIndex = (currentGroup - 1) * 30;
+    const endIndex = startIndex + 30;
+    const groupParticipants = assignedParticipants.slice(startIndex, endIndex);
+
+    const loggedInUid = currentUser ? String(currentUser.uid).trim() : "";
+    const loggedInPanggilan = cachedNamaPanggilan ? cachedNamaPanggilan.toUpperCase() : "";
+
+    groupParticipants.forEach((participant, idx) => {
+        const index = startIndex + idx;
         const assignedJuz = getJuzForIndex(index);
         const surahs = QURAN_JUZ_DATA[assignedJuz] || [];
         const assignedName = (participant.namaPanggilan || "ALUMNI").toUpperCase();
-        const isUserAssigned = currentUser && participant.id === currentUser.uid;
+        const ownerId = participant.id || participant.uid || participant.userId || "";
+
+        let isUserAssigned = false;
+        if (currentUser) {
+            const isUidMatch = ownerId && ownerId === loggedInUid;
+            const isNameMatch = assignedName.includes("DEDEN") || (loggedInPanggilan && assignedName.includes(loggedInPanggilan));
+            isUserAssigned = isUidMatch || isNameMatch;
+        }
+
         const bgClass = (assignedJuz % 2 !== 0) ? 'juz-card-bg-dark' : 'juz-card-bg-lite';
 
         const card = document.createElement("div");
@@ -261,25 +293,21 @@ function renderActiveJuzCards(currentUser) {
         `;
 
         surahs.forEach((s) => {
-            htmlContent += `
-                <div class="surah-card relative overflow-hidden cursor-pointer transition p-3 rounded-xl bg-slate-800/80 border border-slate-700/60 hover:border-amber-400/50 flex items-center justify-between" onclick="triggerReportTilawah(${assignedJuz}, '${s.name}', this)">
-                    <!-- Garis Lintang Merah Diperlebar 2.5x Lipat -->
-                    <div class="red-slash-line absolute inset-0 pointer-events-none hidden items-center justify-center">
-                        <div class="w-[140%] h-8 bg-red-500/70 rotate-[-15deg] transform shadow-sm"></div>
-                    </div>
+            // Amankan tanda petik satu pada nama surat (seperti An-Nisa' atau Ali 'Imran)
+            const safeSurahName = s.name.replace(/'/g, "\\'");
 
+            htmlContent += `
+                <div class="surah-card relative overflow-hidden cursor-pointer transition p-3 rounded-xl bg-slate-800/80 border border-slate-700/60 hover:border-amber-400/50 flex items-center justify-between" onclick="handleSurahCardClick(${assignedJuz}, '${safeSurahName}', '${s.ayat}', this, '${ownerId}', '${assignedName}')">
                     <div class="flex items-center gap-3.5 w-full relative z-10">
-                        <!-- Angka Nomor Surat -->
-                        <div class="surah-number font-black text-3xl shrink-0 text-center" style="color: #080c1d !important; background: transparent !important; border: none !important; box-shadow: none !important;">${s.no}</div>
+                        <div class="surah-number font-black text-3xl shrink-0 text-center text-amber-400">${s.no}</div>
                         <div class="surah-info truncate w-full">
                             <div class="font-bold text-white truncate text-sm surah-title">${s.name}</div>
                             <div class="text-[10px] text-slate-400 surah-ayat">ayat ${s.ayat}</div>
                         </div>
                     </div>
-                    <!-- Sisi Kanan: Badge Tanggal & Jam Selesai -->
                     <div class="surat-time-badge hidden shrink-0 text-right pl-3 border-l border-slate-300/40 ml-2 relative z-10">
-                        <div class="text-[11px] font-bold text-slate-900 date-text"></div>
-                        <div class="text-[10px] text-slate-700 font-medium time-text"></div>
+                        <div class="text-[11px] font-bold text-[#080c1d] date-text"></div>
+                        <div class="text-[10px] text-[#1e293b] font-medium time-text"></div>
                     </div>
                 </div>
             `;
@@ -305,76 +333,216 @@ function renderActiveJuzCards(currentUser) {
     });
 }
 
-// TOGGLE CHECKLIST SURAT
-window.toggleSurahCheck = function(element) {
-    element.classList.toggle("completed");
-    
-    const cardBox = element.closest('.juz-card-box');
-    const totalSurahs = cardBox.querySelectorAll('.surah-card').length;
-    const completedSurahs = cardBox.querySelectorAll('.surah-card.completed').length;
-    const percent = Math.round((completedSurahs / totalSurahs) * 100);
+// ==========================================
+// 3. LOGIKA HAK AKSES & REPORT (DIJAMIN TANPA ERROR SYNTAX)
+// ==========================================
+let activeJuzTarget = null;
+let activeSuratElement = null;
 
-    const percentText = cardBox.querySelector('.progress-text');
-    const progressBar = cardBox.querySelector('.progress-bar-fill');
-
-    if (percentText) percentText.innerText = `${percent}%`;
-    if (progressBar) progressBar.style.width = `${percent}%`;
-};
-
-// HAPUS PESERTA DARI LIST
-window.removeParticipant = async function(index) {
-    if (!confirm(`Yakin ingin menghapus peserta nomor urut ${index + 1}?`)) return;
-
-    assignedParticipants.splice(index, 1);
-
-    try {
-        if (window.firebaseDb) {
-            const { doc, setDoc } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js");
-            await setDoc(doc(window.firebaseDb, "settings", "tilawah_participants"), {
-                participants: assignedParticipants,
-                updatedAt: new Date().toISOString()
-            });
-            alert("Peserta berhasil dihapus.");
-        }
-    } catch (err) {
-        console.error("Gagal memperbarui database:", err);
-        alert("Gagal menghapus peserta.");
+window.handleSurahCardClick = function(assignedJuz, surahName, suratAyat, element, juzOwnerId, juzOwnerName) {
+    if (!cachedAuthUser) {
+        alert("Silakan sign in terlebih dahulu.");
+        return;
     }
 
-    renderTab1Participants();
-    renderActiveJuzCards(cachedAuthUser);
+    const currentUserId = String(cachedAuthUser.uid).trim();
+    const targetOwnerId = String(juzOwnerId).trim();
+    const role = currentUserRole || "member";
+    const loggedInPanggilan = cachedNamaPanggilan ? cachedNamaPanggilan.toUpperCase() : "";
+
+    const isOwnerById = targetOwnerId && (currentUserId === targetOwnerId);
+    const ownerNameUpper = juzOwnerName ? juzOwnerName.toUpperCase() : "";
+    
+    const isOwnerByName = ownerNameUpper.includes("DEDEN") || 
+                          (loggedInPanggilan && ownerNameUpper.includes(loggedInPanggilan)) ||
+                          (loggedInPanggilan && loggedInPanggilan.includes(ownerNameUpper));
+    const isSuperAdmin = (role === "super_admin");
+
+    // Jika BUKAN milik Anda & BUKAN super admin -> Abaikan (View-only murni)
+    if (!isOwnerById && !isOwnerByName && !isSuperAdmin) {
+        return;
+    }
+
+    // Cek Unreport jika sudah selesai
+    const isAlreadyCompleted = element.classList.contains("completed");
+    if (isAlreadyCompleted) {
+        const confirmUnreport = confirm("Apakah anda ingin menghapus report bacaan anda?");
+        if (confirmUnreport) {
+            executeUnreportSurah(assignedJuz, surahName, element);
+        }
+        return;
+    }
+
+    // Buka Modal Konfirmasi Report
+    triggerReportTilawah(assignedJuz, surahName, suratAyat, element);
 };
 
-// MODAL ADMIN MANAGEMENT FUNCTIONS
+function executeUnreportSurah(juzNumber, surahName, element) {
+    element.classList.remove("completed");
+
+    const titleEl = element.querySelector('.surah-title');
+    const subTitleEl = element.querySelector('.surah-ayat');
+    const numEl = element.querySelector('.surah-number');
+    
+    if (titleEl) { titleEl.classList.remove('text-[#080c1d]'); titleEl.classList.add('text-white'); }
+    if (subTitleEl) { subTitleEl.classList.remove('text-[#1e293b]'); subTitleEl.classList.add('text-slate-400'); }
+    if (numEl) { 
+        numEl.classList.remove('text-[#080c1d]'); 
+        numEl.classList.add('text-amber-400'); 
+    }
+
+    const timeBadge = element.querySelector('.surat-time-badge');
+    if (timeBadge) {
+        timeBadge.classList.add("hidden");
+    }
+
+    const cardBox = element.closest('.juz-card-box');
+    if (cardBox) {
+        const totalSurahs = cardBox.querySelectorAll('.surah-card').length;
+        const completedSurahs = cardBox.querySelectorAll('.surah-card.completed').length;
+        const percent = Math.round((completedSurahs / totalSurahs) * 100);
+
+        const percentText = cardBox.querySelector('.progress-text');
+        const progressBar = cardBox.querySelector('.progress-bar-fill');
+
+        if (percentText) percentText.innerText = `${percent}%`;
+        if (progressBar) progressBar.style.width = `${percent}%`;
+    }
+}
+
+window.triggerReportTilawah = function(juzNumber, suratName, suratAyat, element) {
+    activeJuzTarget = { juzNumber, suratName, suratAyat };
+    activeSuratElement = element;
+    
+    const modalText = document.getElementById("confirmReportText");
+    if (modalText) {
+        modalText.innerHTML = `Apakah anda benar-benar sudah menyelesaikan bacaan surat <b>"${suratName} (ayat ${suratAyat})"</b>?`;
+    }
+    
+    const confirmModal = document.getElementById("confirmReportModal");
+    if (confirmModal) {
+        confirmModal.classList.remove("hidden");
+        confirmModal.classList.add("flex");
+    }
+};
+
+document.getElementById("cancelReportBtn")?.addEventListener("click", () => {
+    const confirmModal = document.getElementById("confirmReportModal");
+    if (confirmModal) {
+        confirmModal.classList.remove("flex");
+        confirmModal.classList.add("hidden");
+    }
+    activeJuzTarget = null;
+    activeSuratElement = null;
+});
+
+document.getElementById("yesReportBtn")?.addEventListener("click", async () => {
+    if (!activeJuzTarget || !activeSuratElement) return;
+
+    const confirmModal = document.getElementById("confirmReportModal");
+    if (confirmModal) {
+        confirmModal.classList.remove("flex");
+        confirmModal.classList.add("hidden");
+    }
+
+    const optionsDate = { day: 'numeric', month: 'long', year: 'numeric' };
+    const currentDate = new Date().toLocaleDateString('id-ID', optionsDate);
+    
+    const optionsTime = { hour: '2-digit', minute: '2-digit', hour12: false };
+    const currentTime = "jam : " + new Date().toLocaleTimeString('id-ID', optionsTime);
+
+    activeSuratElement.classList.add("completed");
+
+    const titleEl = activeSuratElement.querySelector('.surah-title');
+    const subTitleEl = activeSuratElement.querySelector('.surah-ayat');
+    const numEl = activeSuratElement.querySelector('.surah-number');
+    
+    if (titleEl) { titleEl.classList.remove('text-white'); titleEl.classList.add('text-[#080c1d]'); }
+    if (subTitleEl) { subTitleEl.classList.remove('text-slate-400'); subTitleEl.classList.add('text-[#1e293b]'); }
+    if (numEl) { 
+        numEl.classList.remove('text-amber-400'); 
+        numEl.classList.add('text-[#080c1d]'); 
+    }
+
+    const timeBadge = activeSuratElement.querySelector('.surat-time-badge');
+    if (timeBadge) {
+        timeBadge.querySelector('.date-text').innerText = currentDate;
+        timeBadge.querySelector('.time-text').innerText = currentTime;
+        timeBadge.classList.remove("hidden");
+    }
+
+    const cardBox = activeSuratElement.closest('.juz-card-box');
+    if (cardBox) {
+        const totalSurahs = cardBox.querySelectorAll('.surah-card').length;
+        const completedSurahs = cardBox.querySelectorAll('.surah-card.completed').length;
+        const percent = Math.round((completedSurahs / totalSurahs) * 100);
+
+        const percentText = cardBox.querySelector('.progress-text');
+        const progressBar = cardBox.querySelector('.progress-bar-fill');
+
+        if (percentText) percentText.innerText = `${percent}%`;
+        if (progressBar) progressBar.style.width = `${percent}%`;
+    }
+    
+    showWhatsappModal(activeJuzTarget.juzNumber, activeJuzTarget.suratName, currentDate, currentTime);
+});
+
+function showWhatsappModal(juzNumber, suratName, dateStr, timeStr) {
+    const waModal = document.getElementById("whatsappModal");
+    const waTextArea = document.getElementById("waMessageText");
+    const sendWaBtn = document.getElementById("sendWaBtn");
+
+    const userName = cachedNamaPanggilan.toUpperCase() || "ALUMNI";
+    const websiteLink = window.location.href;
+
+    const message = "✨ LAPORAN TILAWAH OWOJ ✨\n" +
+                    "Ika SMAN 11 Bandung Angkatan '98\n\n" +
+                    "Alhamdulillah, saya *" + userName + "* telah menyelesaikan:\n" +
+                    "📖 *Juz " + juzNumber + "* (" + suratName + ")\n" +
+                    "📅 Tanggal: " + dateStr + " pukul " + timeStr + "\n\n" +
+                    "Barakallahu fiikum, semoga istiqomah dan membawa keberkahan. 🤲\n\n" +
+                    "🔍 Cek progres selengkapnya di sini:\n" +
+                    "- " + websiteLink;
+
+    if (waTextArea) waTextArea.value = message;
+
+    const encodedMessage = encodeURIComponent(message);
+    if (sendWaBtn) sendWaBtn.href = "https://api.whatsapp.com/send?text=" + encodedMessage;
+
+    if (waModal) {
+        waModal.classList.remove("hidden");
+        waModal.classList.add("flex");
+    }
+}
+
+window.closeWaModal = function() {
+    const waModal = document.getElementById("whatsappModal");
+    if (waModal) {
+        waModal.classList.remove("flex");
+        waModal.classList.add("hidden");
+    }
+};
+
 window.openManageModal = function() {
     const modal = document.getElementById("manageParticipantsModal");
     const alumniDbSelect = document.getElementById("alumniDbSelect");
 
-    if (!modal) return;
+    if (!modal || !alumniDbSelect) return;
 
-    // Ambil ID peserta yang sudah terdaftar di OWOJ agar tidak muncul lagi
     const registeredIds = assignedParticipants.map(p => p.id);
-
     alumniDbSelect.innerHTML = `<option value="">-- Pilih Alumni dari Database --</option>`;
     
     if (allDbAlumni && allDbAlumni.length > 0) {
         const filteredAlumni = allDbAlumni.filter(alumni => {
-            // Ambil semua kemungkinan indikator role atau nama
             const role = (alumni.role || "").toLowerCase().trim();
             const namaPanggilan = (alumni.namaPanggilan || "").toLowerCase();
             const namaLengkap = (alumni.namaLengkap || "").toLowerCase();
             
-            // Deteksi apakah akun ini adalah admin/super_admin berdasarkan role ATAU mengandung kata 'admin' pada namanya
             const isRoleAdmin = role === "admin" || role === "super_admin" || role.includes("admin");
             const isNameAdmin = namaPanggilan.includes("admin") || namaLengkap.includes("admin");
             const isAlreadyRegistered = registeredIds.includes(alumni.id);
 
-            // Jika terdeteksi sebagai admin/super_admin atau sudah terdaftar, sembunyikan dari dropdown
-            if (isRoleAdmin || isNameAdmin || isAlreadyRegistered) {
-                return false;
-            }
-
-            return true;
+            return !isRoleAdmin && !isNameAdmin && !isAlreadyRegistered;
         });
 
         if (filteredAlumni.length > 0) {
@@ -402,7 +570,9 @@ window.closeManageModal = function() {
 };
 
 window.saveParticipantToSlot = async function() {
-    const alumniId = document.getElementById("alumniDbSelect").value;
+    const selectEl = document.getElementById("alumniDbSelect");
+    if (!selectEl) return;
+    const alumniId = selectEl.value;
 
     if (!alumniId) {
         alert("Silakan pilih alumni terlebih dahulu!");
@@ -411,14 +581,11 @@ window.saveParticipantToSlot = async function() {
 
     const selected = allDbAlumni.find(a => a.id === alumniId);
     if (selected) {
-        // Cek apakah alumni sudah terdaftar sebelumnya
-        const isAlreadyRegistered = assignedParticipants.some(p => p.id === selected.id);
-        if (isAlreadyRegistered) {
+        if (assignedParticipants.some(p => p.id === selected.id)) {
             alert("Alumni ini sudah terdaftar sebagai peserta OWOJ!");
             return;
         }
 
-        // Tambahkan ke urutan paling bawah secara otomatis
         assignedParticipants.push({
             id: selected.id,
             namaPanggilan: selected.namaPanggilan || selected.namaLengkap || "Alumni",
@@ -443,10 +610,34 @@ window.saveParticipantToSlot = async function() {
 
     closeManageModal();
     renderTab1Participants();
+    renderTilawahTabs();
     renderActiveJuzCards(cachedAuthUser);
 };
 
-// RENDER COLOR WHEEL & STATS
+window.removeParticipant = async function(index) {
+    if (!confirm(`Yakin ingin menghapus peserta nomor urut ${index + 1}?`)) return;
+
+    assignedParticipants.splice(index, 1);
+
+    try {
+        if (window.firebaseDb) {
+            const { doc, setDoc } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js");
+            await setDoc(doc(window.firebaseDb, "settings", "tilawah_participants"), {
+                participants: assignedParticipants,
+                updatedAt: new Date().toISOString()
+            });
+            alert("Peserta berhasil dihapus.");
+        }
+    } catch (err) {
+        console.error("Gagal memperbarui database:", err);
+        alert("Gagal menghapus peserta.");
+    }
+
+    renderTab1Participants();
+    renderTilawahTabs();
+    renderActiveJuzCards(cachedAuthUser);
+};
+
 function renderColorWheel() {
     const svg = document.getElementById('colorWheelSvg');
     if (!svg) return;
@@ -499,125 +690,3 @@ function updateYearlyStats() {
     if (disciplineRate) disciplineRate.innerText = `94%`;
     if (currentWeekNum) currentWeekNum.innerText = `Pekan ${currentWeek}`;
 }
-
-let activeJuzTarget = null;      // Menyimpan data juz aktif
-let activeSuratElement = null;   // Menyimpan elemen surat spesifik yang sedang diklik
-
-// 1. Fungsi saat user mengklik tombol surat/juz untuk melapor
-window.triggerReportTilawah = function(juzNumber, suratInfo, element) {
-    activeJuzTarget = { juzNumber, suratInfo };
-    activeSuratElement = element; // Simpan referensi elemen surat yang diklik
-    
-    const modalText = document.getElementById("confirmReportText");
-    modalText.innerHTML = `Alhamdulillah, apakah benar tilawah untuk <b>Juz ${juzNumber} (${suratInfo})</b> sudah selesai dibaca?`;
-    
-    const confirmModal = document.getElementById("confirmReportModal");
-    confirmModal.classList.remove("hidden");
-    confirmModal.classList.add("flex");
-};
-
-// Tombol "Tidak" pada konfirmasi
-document.getElementById("cancelReportBtn")?.addEventListener("click", () => {
-    const confirmModal = document.getElementById("confirmReportModal");
-    confirmModal.classList.remove("flex");
-    confirmModal.classList.add("hidden");
-    
-    // Batalkan perubahan, kosongkan target tanpa mengubah warna surat
-    activeJuzTarget = null;
-    activeSuratElement = null;
-});
-
-// Tombol "Iya" pada konfirmasi
-document.getElementById("yesReportBtn")?.addEventListener("click", async () => {
-    if (!activeJuzTarget || !activeSuratElement) return;
-
-    const confirmModal = document.getElementById("confirmReportModal");
-    confirmModal.classList.remove("flex");
-    confirmModal.classList.add("hidden");
-
-    const optionsDate = { day: 'numeric', month: 'long', year: 'numeric' };
-    const currentDate = new Date().toLocaleDateString('id-ID', optionsDate);
-    
-    const optionsTime = { hour: '2-digit', minute: '2-digit', hour12: false };
-    const currentTime = "jam : " + new Date().toLocaleTimeString('id-ID', optionsTime);
-
-    // Tandai surat selesai secara visual (latar jadi putih)
-    activeSuratElement.classList.add("completed");
-
-    // Tampilkan garis lintang merah transparan
-    const redSlash = activeSuratElement.querySelector('.red-slash-line');
-    if (redSlash) {
-        redSlash.classList.remove('hidden');
-        redSlash.classList.add('flex');
-    }
-
-    // Ubah warna teks & angka besar menjadi #080c1d saat surat selesai
-    const titleEl = activeSuratElement.querySelector('.surah-title');
-    const subTitleEl = activeSuratElement.querySelector('.surah-ayat');
-    const numEl = activeSuratElement.querySelector('.surah-number');
-    
-    if (titleEl) { titleEl.classList.remove('text-white'); titleEl.classList.add('text-[#080c1d]'); }
-    if (subTitleEl) { subTitleEl.classList.remove('text-slate-400'); subTitleEl.classList.add('text-[#1e293b]'); }
-    if (numEl) { 
-        numEl.classList.remove('text-amber-400'); 
-        numEl.classList.add('text-[#080c1d]'); 
-    }
-
-    // Tampilkan badge tanggal dan jam di sebelah kanan
-    const timeBadge = activeSuratElement.querySelector('.surat-time-badge');
-    if (timeBadge) {
-        timeBadge.querySelector('.date-text').innerText = currentDate;
-        timeBadge.querySelector('.time-text').innerText = currentTime;
-        timeBadge.classList.remove("hidden");
-    }
-
-    // Update progress bar kartu juz terkait
-    const cardBox = activeSuratElement.closest('.juz-card-box');
-    if (cardBox) {
-        const totalSurahs = cardBox.querySelectorAll('.surah-card').length;
-        const completedSurahs = cardBox.querySelectorAll('.surah-card.completed').length;
-        const percent = Math.round((completedSurahs / totalSurahs) * 100);
-
-        const percentText = cardBox.querySelector('.progress-text');
-        const progressBar = cardBox.querySelector('.progress-bar-fill');
-
-        if (percentText) percentText.innerText = `${percent}%`;
-        if (progressBar) progressBar.style.width = `${percent}%`;
-    }
-    
-    showWhatsappModal(activeJuzTarget.juzNumber, activeJuzTarget.suratInfo, currentDate, currentTime);
-});
-
-// 2. Fungsi memunculkan format ucapan selamat untuk Grup WhatsApp (Dilengkapi Jam & Link)
-function showWhatsappModal(juzNumber, suratInfo, dateStr, timeStr) {
-    const waModal = document.getElementById("whatsappModal");
-    const waTextArea = document.getElementById("waMessageText");
-    const sendWaBtn = document.getElementById("sendWaBtn");
-
-    const userName = window.currentUserName || "Alumni";
-    const websiteLink = window.location.href; // Mengambil link halaman web saat ini secara dinamis
-
-    // Susun teks ucapan lengkap dengan Jam dan Link Website
-    const message = `✨ *LAPORAN TILAWAH OWOJ* ✨\n` +
-                    `Ika SMAN 11 Bandung Angkatan '98\n\n` +
-                    `Alhamdulillah, saya *${userName}* telah menyelesaikan:\n` +
-                    `📖 *Juz ${juzNumber}* (${suratInfo})\n` +
-                    `📅 Tanggal: ${dateStr} pukul ${timeStr}\n\n` +
-                    `_Barakallahu fiikum, semoga istiqomah dan membawa keberkahan._ 🤲\n\n` +
-                    `🔍 Cek progres selengkapnya di sini:\n${websiteLink}`;
-
-    waTextArea.value = message;
-
-    // Buat link intent WhatsApp
-    const encodedMessage = encodeURIComponent(message);
-    sendWaBtn.href = `https://api.whatsapp.com/send?text=${encodedMessage}`;
-
-    waModal.classList.remove("hidden");
-    waModal.classList.add("flex");
-}
-
-window.closeWaModal = function() {
-    const waModal = document.getElementById("whatsappModal");
-    waModal.classList.remove("flex");
-    waModal.classList.add("hidden");
-};

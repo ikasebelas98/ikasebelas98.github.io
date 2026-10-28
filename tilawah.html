@@ -65,19 +65,19 @@
         <div class="bg-slate-900 border-b border-slate-800 sticky top-16 z-40 shadow-md">
             <div class="max-w-[1920px] mx-auto px-2">
                 <div class="grid grid-cols-2 md:grid-cols-4 text-center font-bold text-xs md:text-sm uppercase tracking-wider" id="tabContainer">
-                    <button onclick="switchTab('tab1')" id="btnTab1" class="tab-btn-bar">
-                        PESERTA TILAWAH
-                    </button>
-                    <button onclick="switchTab('tab2')" id="btnTab2" class="tab-btn-bar active">
-                        ONE WEEK ONE JUZ
-                    </button>
-                    <button onclick="switchTab('tab3')" id="btnTab3" class="tab-btn-bar">
-                        ONE WEEK PROGRESS
-                    </button>
-                    <button onclick="switchTab('tab4')" id="btnTab4" class="tab-btn-bar">
-                        LAPORAN TAHUNAN
-                    </button>
-                </div>
+    <button onclick="switchTab('tab1')" id="btnTab1" class="tab-btn-bar">
+        PESERTA TILAWAH
+    </button>
+    <button onclick="switchTab('tab2')" id="btnTab2" class="tab-btn-bar active">
+        ONE WEEK ONE JUZ
+    </button>
+    <button onclick="switchTab('tab3')" id="btnTab3" class="tab-btn-bar">
+        PROGRESS TILAWAH
+    </button>
+    <button onclick="switchTab('tab4')" id="btnTab4" class="tab-btn-bar">
+        LAPORAN TAHUNAN
+    </button>
+</div>
             </div>
         </div>
 
@@ -186,13 +186,16 @@
     </div>
 </div>
 
-            <!-- TAB 2: ONE WEEK ONE JUZ (GRID 30 JUZ CARD SEPERTI ACCUAN GAMBAR) -->
-            <div id="tab2" class="tab-content block">
-                <!-- GRID CONTAINER 3 KOLOM BERDERET -->
-                <div id="juzGrid30Container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    <!-- 30 CARD JUZ AKAN DI-RENDER OTOMATIS OLEH JAVASCRIPT -->
-                </div>
-            </div>
+            <!-- TAB 2: ONE WEEK ONE JUZ -->
+<div id="tab2" class="tab-content block space-y-4">
+    <!-- Wadah Tombol Kelompok Tilawah Dinamis -->
+    <div id="tilawahTabsContainer" class="flex flex-wrap items-center justify-center gap-2 pb-2"></div>
+
+    <!-- GRID CONTAINER 3 KOLOM BERDERET -->
+    <div id="juzGrid30Container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <!-- 30 CARD JUZ AKAN DI-RENDER OTOMATIS OLEH JAVASCRIPT -->
+    </div>
+</div>
 
             <!-- TAB 3: ONE WEEK PROGRESS (COLOR WHEEL) -->
             <div id="tab3" class="tab-content hidden">
