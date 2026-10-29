@@ -319,24 +319,22 @@ function renderActiveJuzCards(currentUser) {
         surahs.forEach((s) => {
             const safeSurahName = s.name.replace(/'/g, "\\'");
 
-            // Tentukan warna teks surat:
-            // Jika kartu ini adalah JUZ Gold (isUserAssigned true), gunakan #d1ae55.
-            // Jika bukan (kotak Juz gelap), tetap gunakan #8698b5.
-            const surahTextColor = isUserAssigned ? "color: #d1ae55 !important;" : "color: #8698b5 !important;";
+            // Tentukan class warna teks awal berdasarkan apakah kartu tersebut milik user aktif (gold) atau bukan
+const initialTextColorClass = isUserAssigned ? "text-[#d1ae55]" : "text-[#8698b5]";
 
-            htmlContent += `
+htmlContent += `
     <div class="surah-card relative overflow-hidden cursor-pointer transition p-3 rounded-xl bg-slate-800/80 border border-slate-700/60 hover:border-amber-400/50 flex items-center justify-between" onclick="handleSurahCardClick(${assignedJuz}, '${safeSurahName}', '${s.ayat}', this, '${ownerId}', '${assignedName}')">
         <div class="flex items-center gap-3.5 w-full relative z-10">
-            <div class="surah-number font-black text-3xl shrink-0 text-center" style="${surahTextColor}">${s.no}</div>
+            <div class="surah-number font-black text-3xl shrink-0 text-center ${initialTextColorClass}">${s.no}</div>
             <div class="surah-info truncate w-full">
-                <div class="font-bold truncate text-sm surah-title" style="${surahTextColor}">${s.name}</div>
-                <div class="text-[10px] opacity-80 surah-ayat" style="${surahTextColor}">ayat ${s.ayat}</div>
+                <div class="font-bold truncate text-[15px] surah-title ${initialTextColorClass}">${s.name}</div>
+                <div class="text-[11px] opacity-80 surah-ayat ${initialTextColorClass}">ayat ${s.ayat}</div>
             </div>
         </div>
         <div class="surat-time-badge hidden shrink-0 text-right pl-3 border-l border-slate-300/40 ml-2 relative z-10">
             <div class="text-[11px] font-extrabold tracking-wide text-red-500 mb-0.5 done-text">SELESAI</div>
-            <div class="text-[11px] font-bold date-text"></div>
-            <div class="text-[10px] font-medium time-text"></div>
+            <div class="text-[11px] font-bold date-text ${initialTextColorClass}"></div>
+            <div class="text-[10px] font-medium time-text ${initialTextColorClass}"></div>
         </div>
     </div>
 `;
@@ -474,24 +472,28 @@ document.getElementById("yesReportBtn")?.addEventListener("click", async () => {
 function applySurahCompletedVisual(element, dateStr, timeStr) {
     element.classList.add("completed");
 
-    const titleEl = element.querySelector('.surah-title');
-    const subTitleEl = element.querySelector('.surah-ayat');
-    const numEl = element.querySelector('.surah-number');
-    
     const cardBox = element.closest('.juz-card-box');
     const isGoldCard = cardBox && cardBox.classList.contains('user-assigned');
 
-    if (titleEl) { 
-        titleEl.classList.remove('text-[#8698b5]', 'text-[#d1ae55]'); 
-        titleEl.classList.add(isGoldCard ? 'text-[#0f172a]' : 'text-[#080c1d]'); 
-    }
-    if (subTitleEl) { 
-        subTitleEl.classList.remove('text-[#8698b5]/80'); 
-        subTitleEl.classList.add(isGoldCard ? 'text-[#0f172a]' : 'text-[#1e293b]'); 
-    }
-    if (numEl) { 
-        numEl.classList.remove('text-[#8698b5]', 'text-[#d1ae55]'); 
-        numEl.classList.add(isGoldCard ? 'text-[#0f172a]' : 'text-[#080c1d]'); 
+    if (isGoldCard) {
+        element.classList.remove("completed-dark");
+        element.classList.add("completed-gold");
+        // Kotak Gold (Aktif) tetap putih dengan teks gold
+        element.style.backgroundColor = "#ffffff";
+        element.style.borderColor = "#ffffff";
+        
+        const titleEl = element.querySelector('.surah-title');
+        const subTitleEl = element.querySelector('.surah-ayat');
+        const numEl = element.querySelector('.surah-number');
+        if (titleEl) titleEl.style.color = "#d1ae55";
+        if (subTitleEl) titleEl.style.color = "#d1ae55";
+        if (numEl) numEl.style.color = "#d1ae55";
+    } else {
+        element.classList.remove("completed-gold");
+        element.classList.add("completed-dark");
+        // Kosongkan inline style agar sepenuhnya dikendalikan oleh class .completed-dark di CSS
+        element.style.backgroundColor = "";
+        element.style.borderColor = "";
     }
 
     const timeBadge = element.querySelector('.surat-time-badge');
@@ -1034,23 +1036,28 @@ async function updateYearlyStats() {
 // FUNGSI PEMBATALAN LAPORAN (UNREPORT) & HAPUS DARI FIREBASE
 // ==========================================
 async function executeUnreportSurah(juzNumber, suratName, element) {
-    element.classList.remove("completed");
+    element.classList.remove("completed", "completed-gold", "completed-dark");
+    element.style.backgroundColor = "";
+    element.style.borderColor = "";
 
+    // Bersihkan inline style pada elemen teks agar kembali mengikuti aturan default CSS
     const titleEl = element.querySelector('.surah-title');
     const subTitleEl = element.querySelector('.surah-ayat');
     const numEl = element.querySelector('.surah-number');
     
-    // Saat di-unreport, kembalikan ke warna #8698b5
-    if (titleEl) { titleEl.classList.remove('text-[#080c1d]'); titleEl.classList.add('text-[#8698b5]'); }
-    if (subTitleEl) { subTitleEl.classList.remove('text-[#1e293b]'); subTitleEl.classList.add('text-[#8698b5]/80'); }
-    if (numEl) { 
-        numEl.classList.remove('text-[#080c1d]'); 
-        numEl.classList.add('text-[#8698b5]'); 
-    }
+    if (titleEl) titleEl.style.color = "";
+    if (subTitleEl) subTitleEl.style.color = "";
+    if (numEl) numEl.style.color = "";
 
     const timeBadge = element.querySelector('.surat-time-badge');
     if (timeBadge) {
         timeBadge.classList.add("hidden");
+        timeBadge.style.borderColor = "";
+        
+        const dateTextEl = timeBadge.querySelector('.date-text');
+        const timeTextEl = timeBadge.querySelector('.time-text');
+        if (dateTextEl) dateTextEl.style.color = "";
+        if (timeTextEl) timeTextEl.style.color = "";
     }
 
     const cardBox = element.closest('.juz-card-box');

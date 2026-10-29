@@ -68,10 +68,43 @@
     background-color: #0f172a;
 }
 
-.surah-card.completed {
+/* ==========================================
+   SELESAI PADA BOX NON-AKTIF (DARK) -> ABU-ABU
+========================================== */
+.surah-card.completed-dark {
+    background-color: #8698b5 !important;
+    border: 1px solid #8698b5 !important;
+}
+
+/* Memastikan angka nomor, nama surat, dan ayat berubah menjadi #070b1c */
+.surah-card.completed-dark .surah-number,
+.surah-card.completed-dark .surah-title,
+.surah-card.completed-dark .surah-ayat,
+.surah-card.completed-dark .date-text,
+.surah-card.completed-dark .time-text {
+    color: #070b1c !important;
+}
+
+.surah-card.completed-dark .surat-time-badge {
+    border-color: rgba(7, 11, 28, 0.4) !important;
+}
+
+/* SELESAI PADA BOX JUZ GOLD (USER AKTIF) -> PUTIH DENGAN TEKS GOLD */
+.surah-card.completed-gold {
     background-color: #ffffff !important;
     border: 1px solid #ffffff !important;
-    color: #020617 !important;
+}
+
+.surah-card.completed-gold .surah-number,
+.surah-card.completed-gold .surah-title,
+.surah-card.completed-gold .surah-ayat,
+.surah-card.completed-gold .date-text,
+.surah-card.completed-gold .time-text {
+    color: #d1ae55 !important;
+}
+
+.surah-card.completed-gold .surat-time-badge {
+    border-color: rgba(209, 174, 85, 0.4) !important;
 }
 
 .surah-number {
@@ -85,10 +118,6 @@
     align-items: center;
     justify-content: center;
     min-width: 2.2rem;
-}
-
-.surah-card.completed .surah-number {
-    color: #080c1d !important;
 }
 
 .surah-info {
