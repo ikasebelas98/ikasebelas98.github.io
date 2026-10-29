@@ -284,26 +284,34 @@ function renderActiveJuzCards(currentUser) {
             isUserAssigned = isUidMatch || isNameMatch;
         }
 
-        // Tentukan background: Jika user aktif, gunakan gold. Jika tidak, ikuti ganjil/genap (dark/lite)
-let bgClass = (assignedJuz % 2 !== 0) ? 'juz-card-bg-dark' : 'juz-card-bg-lite';
-if (isUserAssigned) {
-    bgClass = 'juz-card-bg-gold';
-}
+        let bgClass = (assignedJuz % 2 !== 0) ? 'juz-card-bg-dark' : 'juz-card-bg-lite';
+        if (isUserAssigned) {
+            bgClass = 'juz-card-bg-gold';
+        }
 
-const card = document.createElement("div");
-card.className = `juz-card-box ${bgClass} ${isUserAssigned ? 'user-assigned' : ''}`;
-card.id = `juz-btn-${assignedJuz}`;
+        const card = document.createElement("div");
+        card.className = `juz-card-box ${bgClass} ${isUserAssigned ? 'user-assigned' : ''}`;
+        card.id = `juz-btn-${assignedJuz}`;
+
+        // Nama Panggilan: Kotak Gold -> #3b3e3f (abu-abu), Kotak Gelap -> #fbbf24 (gold)
+        const nameColorClass = isUserAssigned ? 'text-[#3b3e3f]' : 'text-[#fbbf24]';
+
+        // 2. Nomor Urut / Pekan: Kotak Gold -> #ffffff (putih), Kotak Gelap -> #8698b5
+        const metaColorClass = isUserAssigned ? 'text-[#ffffff]' : 'text-[#8698b5]';
+
+        // 3. Teks "Progres Bacaan Pekan Ini": Kotak Gold -> #ffffff (putih), Kotak Gelap -> #8698b5
+        const progressLabelColorClass = isUserAssigned ? 'text-[#ffffff]' : 'text-[#8698b5]';
 
         let htmlContent = `
             <div>
                 <div class="flex justify-between items-start mb-2">
-                    <h2 class="text-3xl md:text-4xl font-extralight tracking-tight ${isUserAssigned ? 'text-[#0f172a]' : 'text-white'}">JUZ ${assignedJuz}</h2>
-                    <div class="text-[10px] opacity-80 text-right ${isUserAssigned ? 'text-[#000000]' : ''}">
-                        <div>No. Urut: ${index + 1}</div>
+                    <h2 class="text-3xl md:text-4xl font-extralight tracking-tight ${isUserAssigned ? 'text-[#ffffff]' : 'text-[#8698b5]'}">JUZ ${assignedJuz}</h2>
+                    <div class="text-[12px] opacity-90 font-bold text-right ${metaColorClass}">
+                        <div>Nomor Urut: ${index + 1}</div>
                         <div>Pekan ke-${getElapsedWeeks() + 1}</div>
                     </div>
                 </div>
-                <h3 class="text-xl font-bold mb-4 tracking-wide text-amber-300">${assignedName}</h3>
+                <h3 class="text-xl font-bold mb-4 tracking-wide ${nameColorClass}">${assignedName}</h3>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
         `;
@@ -311,31 +319,38 @@ card.id = `juz-btn-${assignedJuz}`;
         surahs.forEach((s) => {
             const safeSurahName = s.name.replace(/'/g, "\\'");
 
+            // Tentukan warna teks surat:
+            // Jika kartu ini adalah JUZ Gold (isUserAssigned true), gunakan #d1ae55.
+            // Jika bukan (kotak Juz gelap), tetap gunakan #8698b5.
+            const surahTextColor = isUserAssigned ? "color: #d1ae55 !important;" : "color: #8698b5 !important;";
+
             htmlContent += `
     <div class="surah-card relative overflow-hidden cursor-pointer transition p-3 rounded-xl bg-slate-800/80 border border-slate-700/60 hover:border-amber-400/50 flex items-center justify-between" onclick="handleSurahCardClick(${assignedJuz}, '${safeSurahName}', '${s.ayat}', this, '${ownerId}', '${assignedName}')">
         <div class="flex items-center gap-3.5 w-full relative z-10">
-            <div class="surah-number font-black text-3xl shrink-0 text-center text-[#8698b5]">${s.no}</div>
+            <div class="surah-number font-black text-3xl shrink-0 text-center" style="${surahTextColor}">${s.no}</div>
             <div class="surah-info truncate w-full">
-                <div class="font-bold text-[#8698b5] truncate text-sm surah-title">${s.name}</div>
-                <div class="text-[10px] text-[#8698b5]/80 surah-ayat">ayat ${s.ayat}</div>
+                <div class="font-bold truncate text-sm surah-title" style="${surahTextColor}">${s.name}</div>
+                <div class="text-[10px] opacity-80 surah-ayat" style="${surahTextColor}">ayat ${s.ayat}</div>
             </div>
         </div>
         <div class="surat-time-badge hidden shrink-0 text-right pl-3 border-l border-slate-300/40 ml-2 relative z-10">
-            <div class="text-[11px] font-bold text-[#080c1d] date-text"></div>
-            <div class="text-[10px] text-[#1e293b] font-medium time-text"></div>
+            <div class="text-[11px] font-extrabold tracking-wide text-red-500 mb-0.5 done-text">SELESAI</div>
+            <div class="text-[11px] font-bold date-text"></div>
+            <div class="text-[10px] font-medium time-text"></div>
         </div>
     </div>
 `;
         });
+
 
         htmlContent += `
         </div>
     </div>
 
     <div class="space-y-1 pt-2 border-t ${isUserAssigned ? 'border-[#0f172a]/30' : 'border-white/20'}">
-        <div class="flex justify-between text-[11px] font-semibold opacity-90">
-            <span class="text-[#8698b5]">Progres Bacaan Pekan Ini</span>
-            <span class="text-amber-400 font-bold progress-text">0%</span>
+        <div class="flex justify-between text-[12px] font-semibold opacity-90">
+            <span class="${progressLabelColorClass}">Progres Bacaan Pekan Ini</span>
+            <span class="${isUserAssigned ? 'text-[#ffffff]' : 'text-amber-400'} font-bold progress-text">0%</span>
         </div>
         <div class="w-full bg-slate-900/60 h-3 rounded-full overflow-hidden p-0.5 border border-white/20">
             <div class="bg-amber-400 h-full rounded-full transition-all duration-300 progress-bar-fill" style="width: 0%"></div>
@@ -463,12 +478,20 @@ function applySurahCompletedVisual(element, dateStr, timeStr) {
     const subTitleEl = element.querySelector('.surah-ayat');
     const numEl = element.querySelector('.surah-number');
     
-    // Saat selesai (background putih), teks berubah gelap agar terbaca jelas
-    if (titleEl) { titleEl.classList.remove('text-[#8698b5]'); titleEl.classList.add('text-[#080c1d]'); }
-    if (subTitleEl) { subTitleEl.classList.remove('text-[#8698b5]/80'); subTitleEl.classList.add('text-[#1e293b]'); }
+    const cardBox = element.closest('.juz-card-box');
+    const isGoldCard = cardBox && cardBox.classList.contains('user-assigned');
+
+    if (titleEl) { 
+        titleEl.classList.remove('text-[#8698b5]', 'text-[#d1ae55]'); 
+        titleEl.classList.add(isGoldCard ? 'text-[#0f172a]' : 'text-[#080c1d]'); 
+    }
+    if (subTitleEl) { 
+        subTitleEl.classList.remove('text-[#8698b5]/80'); 
+        subTitleEl.classList.add(isGoldCard ? 'text-[#0f172a]' : 'text-[#1e293b]'); 
+    }
     if (numEl) { 
-        numEl.classList.remove('text-[#8698b5]'); 
-        numEl.classList.add('text-[#080c1d]'); 
+        numEl.classList.remove('text-[#8698b5]', 'text-[#d1ae55]'); 
+        numEl.classList.add(isGoldCard ? 'text-[#0f172a]' : 'text-[#080c1d]'); 
     }
 
     const timeBadge = element.querySelector('.surat-time-badge');
@@ -476,9 +499,16 @@ function applySurahCompletedVisual(element, dateStr, timeStr) {
         timeBadge.querySelector('.date-text').innerText = dateStr;
         timeBadge.querySelector('.time-text').innerText = timeStr;
         timeBadge.classList.remove("hidden");
+
+        if (isGoldCard) {
+            timeBadge.style.borderColor = "rgba(209, 174, 85, 0.4)";
+            const dateTextEl = timeBadge.querySelector('.date-text');
+            const timeTextEl = timeBadge.querySelector('.time-text');
+            if (dateTextEl) dateTextEl.style.color = "#d1ae55";
+            if (timeTextEl) timeTextEl.style.color = "#d1ae55";
+        }
     }
 
-    const cardBox = element.closest('.juz-card-box');
     if (cardBox) {
         const totalSurahs = cardBox.querySelectorAll('.surah-card').length;
         const completedSurahs = cardBox.querySelectorAll('.surah-card.completed').length;
