@@ -293,8 +293,8 @@ function renderActiveJuzCards(currentUser) {
         card.className = `juz-card-box ${bgClass} ${isUserAssigned ? 'user-assigned' : ''}`;
         card.id = `juz-btn-${assignedJuz}`;
 
-        // Nama Panggilan: Kotak Gold -> #3b3e3f (abu-abu), Kotak Gelap -> #fbbf24 (gold)
-        const nameColorClass = isUserAssigned ? 'text-[#3b3e3f]' : 'text-[#fbbf24]';
+        // Nama Panggilan: Kotak Gold -> #3b3e3f (abu-abu), Kotak Gelap -> #8698b5
+        const nameColorClass = isUserAssigned ? 'text-[#3b3e3f]' : 'text-[#ffffff]';
 
         // 2. Nomor Urut / Pekan: Kotak Gold -> #ffffff (putih), Kotak Gelap -> #8698b5
         const metaColorClass = isUserAssigned ? 'text-[#ffffff]' : 'text-[#8698b5]';
