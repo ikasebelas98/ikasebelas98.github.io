@@ -7,7 +7,7 @@
     padding: 10px 18px;
     font-size: 13px;
     font-weight: 600;
-    color: #94a3b8;
+    color: #8698b5;
     background-color: #0f172a;
     border: 1px solid #1e293b;
     border-bottom: none;
@@ -23,36 +23,36 @@
 }
 
 .tab-btn.active {
-    color: #fbbf24;
+    color: #d1ae55;
     background-color: #1e293b;
-    border-color: #f59e0b;
-    border-bottom: 2px solid #f59e0b;
+    border-color: #d1ae55;
+    border-bottom: 2px solid #d1ae55;
 }
 
 /* BAR TAB TOP NAVIGATION */
 .tab-btn-bar {
     padding: 14px 8px;
-    background-color: #1e293b;
-    color: #94a3b8;
-    border-right: 1px solid #0f172a;
+    background-color: #d2d6e6 !important; /* Warna untuk tab tidak aktif (tandai merah) */
+    color: #0f172a !important;            /* Warna teks agar kontras dengan background terang */
+    border-right: 1px solid rgba(15, 23, 42, 0.1);
     transition: all 0.2s ease;
 }
 
 .tab-btn-bar:hover {
-    background-color: #334155;
-    color: #ffffff;
+    background-color: #bec3da !important;
+    color: #0f172a !important;
 }
 
 .tab-btn-bar.active {
-    background-color: #475569;
-    color: #ffffff;
-    box-shadow: inset 0 -3px 0 0 #fbbf24;
+    background-color: #bec3da !important; /* Warna untuk tab aktif (tandai hijau) */
+    color: #0f172a !important;            /* Warna teks pada tab aktif */
+    box-shadow: inset 0 -3px 0 0 #bec3da !important; /* Garis bawah aksen emas agar tetap terlihat jelas */
 }
 
 /* SURAH BOX GRID */
 .surah-card {
-    background-color: #020617;
-    border: 1px dashed #334155;
+    background-color: #0d0d0e;
+    border: 1px dashed #0d0d0e;
     border-radius: 8px;
     padding: 10px 12px;
     display: flex;
@@ -64,16 +64,16 @@
 }
 
 .surah-card:hover {
-    border-color: #fbbf24;
-    background-color: #0f172a;
+    border-color: #4e4e4e;
+    background-color: #080808;
 }
 
 /* ==========================================
    SELESAI PADA BOX NON-AKTIF (DARK) -> ABU-ABU
 ========================================== */
 .surah-card.completed-dark {
-    background-color: #8698b5 !important;
-    border: 1px solid #8698b5 !important;
+    background-color: #4b526b !important;
+    border: 1px solid #4b526b!important;
 }
 
 /* Memastikan angka nomor, nama surat, dan ayat berubah menjadi #070b1c */

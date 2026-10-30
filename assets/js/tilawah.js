@@ -449,7 +449,8 @@ document.getElementById("yesReportBtn")?.addEventListener("click", async () => {
     try {
         if (window.firebaseDb) {
             const { doc, setDoc } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js");
-            const reportRef = doc(window.firebaseDb, "tilawah_reports", `pekan_${currentWeek}_juz_${juzNum}`);
+            const safeSurahId = suratName.replace(/[^a-zA-Z0-9]/g, "_");
+            const reportRef = doc(window.firebaseDb, "tilawah_reports", `pekan_${currentWeek}_juz_${juzNum}_surat_${safeSurahId}`);
             
             await setDoc(reportRef, {
                 pekan: currentWeek,
@@ -664,6 +665,45 @@ window.closeWaModal = function() {
     if (waModal) {
         waModal.classList.remove("flex");
         waModal.classList.add("hidden");
+    }
+};
+
+// ==========================================
+// FUNGSI MODAL KELOLA PESERTA OWOJ
+// ==========================================
+window.openManageModal = function() {
+    const modal = document.getElementById("manageParticipantsModal");
+    if (modal) {
+        modal.classList.remove("hidden");
+        modal.classList.add("flex");
+        
+        const selectEl = document.getElementById("alumniDbSelect");
+        if (selectEl) {
+            // 1. Ambil ID alumni yang sudah terdaftar sebagai peserta tilawah agar tidak muncul lagi
+            const registeredIds = assignedParticipants.map(p => p.id);
+
+            // 2. Filter data: Sembunyikan role 'admin' atau 'super_admin' DAN yang sudah terdaftar
+            const filteredAlumni = allDbAlumni.filter(a => {
+                const role = (a.role || "member").toLowerCase();
+                const isAdminOrSuper = role === "admin" || role === "super_admin";
+                const isAlreadyRegistered = registeredIds.includes(a.id);
+
+                // Hanya ambil yang bukan admin/super admin dan belum terdaftar
+                return !isAdminOrSuper && !isAlreadyRegistered;
+            });
+
+            // 3. Render ke dalam dropdown
+            selectEl.innerHTML = '<option value="">-- Pilih Alumni --</option>' + 
+                filteredAlumni.map(a => `<option value="${a.id}">${a.namaLengkap || a.namaPanggilan || 'Alumni'} (${a.namaPanggilan || '-'})</option>`).join('');
+        }
+    }
+};
+
+window.closeManageModal = function() {
+    const modal = document.getElementById("manageParticipantsModal");
+    if (modal) {
+        modal.classList.remove("flex");
+        modal.classList.add("hidden");
     }
 };
 
@@ -1077,7 +1117,8 @@ async function executeUnreportSurah(juzNumber, suratName, element) {
     try {
         if (window.firebaseDb) {
             const { doc, deleteDoc } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js");
-            await deleteDoc(doc(window.firebaseDb, "tilawah_reports", `pekan_${currentWeek}_juz_${juzNumber}`));
+            const safeSurahId = suratName.replace(/[^a-zA-Z0-9]/g, "_");
+            await deleteDoc(doc(window.firebaseDb, "tilawah_reports", `pekan_${currentWeek}_juz_${juzNumber}_surat_${safeSurahId}`));
         }
     } catch (err) {
         console.error("Gagal menghapus report dari Firebase:", err);
