@@ -274,27 +274,28 @@ body.mega-open .mega-icon {
    RESPONSIVE MOBILE & TABLET (POP-UP ACCORDION)
 ========================================================== */
 
+/* Perbaikan Tampilan Hamburger Menu */
 .navbar-toggle {
-    display: none;
+    display: flex;
     flex-direction: column;
     justify-content: space-between;
-    width: 22px;
-    height: 16px;
+    width: 30px;
+    height: 24px;
     background: transparent;
     border: none;
     cursor: pointer;
     padding: 0;
+    z-index: 100;
 }
 
-/* Styling Tombol Hamburger Menu Navbar */
 .navbar-toggle .bar {
-    display: block;
-    width: 25px;
-    height: 3px;
-    margin: 5px auto;
-    background-color: #99a6b7 !important; /* Diubah ke warna #99a6b7 agar kontras di semua mode */
+    display: block !important;
+    width: 100% !important;
+    height: 3px !important;
+    background-color: #99a6b7 !important; /* Warna abu-abu logo IKA */
     border-radius: 2px;
     transition: all 0.3s ease-in-out;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15); /* Memberikan kontras agar tidak 'tenggelam' */
 }
 
 @media screen and (max-width: 991px) {
