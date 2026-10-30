@@ -274,29 +274,28 @@ body.mega-open .mega-icon {
    RESPONSIVE MOBILE & TABLET (POP-UP ACCORDION)
 ========================================================== */
 
-/* Sembunyikan tombol hamburger secara default di layar besar (Desktop) */
+/* Sembunyikan tombol hamburger secara default di Desktop */
 .navbar-toggle {
-    display: none;
-    background: transparent;
-    border: none;
-    cursor: pointer;
-    padding: 4px;
+    display: none !important;
 }
 
-/* Hanya tampilkan tombol hamburger di layar handphone / mobile */
+/* Hanya tampilkan tombol hamburger di layar Mobile (maksimal lebar 768px) */
 @media screen and (max-width: 768px) {
     .navbar-toggle {
         display: flex !important;
         align-items: center;
         justify-content: center;
+        background: transparent !important;
+        border: none !important;
+        cursor: pointer;
+        padding: 4px;
     }
-}
-
-/* Pastikan ukuran gambar hamburger proporsional dan konsisten */
-.navbar-toggle img {
-    width: 26px;
-    height: 26px;
-    object-contain;
+    
+    .navbar-toggle img {
+        display: block !important;
+        width: 26px !important;
+        height: 26px !important;
+    }
 }
 
 @media screen and (max-width: 991px) {
