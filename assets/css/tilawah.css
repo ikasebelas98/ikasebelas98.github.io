@@ -33,7 +33,7 @@
 .tab-btn-bar {
     padding: 14px 8px;
     background-color: #d2d6e6 !important; /* Warna untuk tab tidak aktif (tandai merah) */
-    color: #0f172a !important;            /* Warna teks agar kontras dengan background terang */
+    color: #1b2233 !important;            /* Warna teks agar kontras dengan background terang */
     border-right: 1px solid rgba(15, 23, 42, 0.1);
     transition: all 0.2s ease;
 }
@@ -44,9 +44,9 @@
 }
 
 .tab-btn-bar.active {
-    background-color: #bec3da !important; /* Warna untuk tab aktif (tandai hijau) */
+    background-color: #848ba8 !important; /* Warna untuk tab aktif (tandai hijau) */
     color: #0f172a !important;            /* Warna teks pada tab aktif */
-    box-shadow: inset 0 -3px 0 0 #bec3da !important; /* Garis bawah aksen emas agar tetap terlihat jelas */
+    box-shadow: inset 0 -3px 0 0 #848ba8 !important; /* Garis bawah aksen emas agar tetap terlihat jelas */
 }
 
 /* SURAH BOX GRID */
