@@ -39,9 +39,7 @@ function injectNavbar() {
 
             <!-- Tombol Hamburger Mobile -->
             <button class="navbar-toggle" id="navbarToggle" aria-label="Toggle Navigation">
-                <span class="bar"></span>
-                <span class="bar"></span>
-                <span class="bar"></span>
+                <img src="assets/images/bt-hamburger.webp" alt="Menu">
             </button>
         </div>
 

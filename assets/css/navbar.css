@@ -279,7 +279,7 @@ body.mega-open .mega-icon {
     display: none !important;
 }
 
-/* Hanya tampilkan tombol hamburger di layar Mobile (maksimal lebar 768px) */
+/* Tampilkan tombol hamburger di layar Mobile */
 @media screen and (max-width: 768px) {
     .navbar-toggle {
         display: flex !important;
@@ -295,6 +295,7 @@ body.mega-open .mega-icon {
         display: block !important;
         width: 26px !important;
         height: 26px !important;
+        object-fit: contain;
     }
 }
 
