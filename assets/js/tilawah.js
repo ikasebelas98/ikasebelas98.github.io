@@ -957,7 +957,7 @@ function renderColorWheel() {
 }
 
 // ==========================================
-// INTEGRASI REAL-TIME LAPORAN TAHUNAN & LEADERBOARD
+// INTEGRASI REAL-TIME LAPORAN TAHUNAN & LEADERBOARD (DIREVISI)
 // ==========================================
 async function updateYearlyStats() {
     const totalKhatamEl = document.getElementById("yearlyTotalKhatam");
@@ -978,18 +978,24 @@ async function updateYearlyStats() {
         const reports = [];
         const userReportCount = {};
         const earlyBirdCount = {};
+        const uniqueReportKeys = new Set(); // Set untuk mencegah duplikasi data
 
         snap.forEach(docSnap => {
             const data = docSnap.data();
+            
+            // Buat kunci unik berdasarkan Pekan, Juz, Surat, dan User ID/Nama
+            const uniqueKey = `${data.pekan}_${data.juz}_${data.surat}_${data.nama}`;
+            if (uniqueReportKeys.has(uniqueKey)) return; // Jika sudah ada, abaikan (mencegah double hitung)
+            uniqueReportKeys.add(uniqueKey);
+
             reports.push(data);
 
             const userName = (data.nama || "Alumni").toUpperCase();
             userReportCount[userName] = (userReportCount[userName] || 0) + 1;
 
-            // Cek apakah laporan dilakukan di hari Senin/Selasa (Early Birds)
             if (data.timestamp) {
                 const reportDate = new Date(data.timestamp);
-                const day = reportDate.getDay(); // 1 = Senin, 2 = Selasa
+                const day = reportDate.getDay(); 
                 if (day === 1 || day === 2) {
                     earlyBirdCount[userName] = (earlyBirdCount[userName] || 0) + 1;
                 }
@@ -1016,14 +1022,14 @@ async function updateYearlyStats() {
 
         if (totalKhatamEl) totalKhatamEl.innerText = `${totalKhatamCount} Kali`;
 
-        // 2. Hitung Tingkat Disiplin Angkatan (Rasio Surat Selesai vs Target Laporan)
-        const totalTargetReports = assignedParticipants.length * 30 * currentWeek; // estimasi total kapasitas
+        // 2. Hitung Tingkat Disiplin Angkatan
+        const totalTargetReports = assignedParticipants.length * 30 * currentWeek;
         const totalActualReports = reports.length;
         const disciplinePercent = totalTargetReports > 0 ? Math.min(100, Math.round((totalActualReports / Math.max(1, assignedParticipants.length * currentWeek)) * 100)) : 0;
 
         if (disciplineRateEl) disciplineRateEl.innerText = `${disciplinePercent}%`;
 
-        // 3. Render Leaderboard Peserta Paling Rajin
+        // 3. Render Leaderboard Peserta Paling Rajin (Menampilkan jumlah surat yang akurat)
         const sortedLeaderboard = Object.entries(userReportCount)
             .sort((a, b) => b[1] - a[1])
             .slice(0, 5);
