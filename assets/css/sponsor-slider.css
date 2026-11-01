@@ -368,9 +368,12 @@
     align-items: center;
     justify-content: center;
     gap: 8px;
-    margin-top: 25px;
+    margin-top: 15px !important;
+    margin-bottom: 5px !important;
     width: 100%;
     min-height: 12px;
+    position: relative;
+    z-index: 101; /* Pastikan berada di layer paling atas */
 }
 
 .sponsor-dot {
