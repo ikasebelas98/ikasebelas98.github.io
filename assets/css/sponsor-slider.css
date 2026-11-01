@@ -46,17 +46,20 @@
     width: 100%;
     max-width: 100%;
     margin: 0 auto;
-    padding: 0 50px;
+    padding: 0 15px;
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
     align-items: center;
+    /* Hilangkan batasan tinggi mutlak agar wadah bisa menyesuaikan isi */
 }
 
 .sponsor-stage {
     position: relative;
     width: 100%;
-    height: var(--sponsor-max-height);
+    /* Hapus height tetap, biarkan flex item menentukan tinggi berdasarkan gambar aktif */
+    height: auto !important; 
+    min-height: 250px;
     display: flex;
     justify-content: center;
     align-items: center; 
@@ -397,10 +400,8 @@
 
 @media (max-width: 768px) {
     .sponsor-slider {
-        /* Kembalikan margin atas dan bawah agar setara/konsisten dengan grid-menu */
         margin-top: 10px !important;
         margin-bottom: 10px !important;
-        /* Berikan padding atas dan bawah yang sama persis */
         padding: 12px 0 !important;
     }
 
@@ -408,18 +409,15 @@
         display: none !important;
     }
 
-    .sponsor-safe {
-        padding: 0 15px;
-    }
-
-    .sponsor-viewport.slot-xs,
-    .sponsor-viewport.slot-s {
-        display: none !important;
-    }
-
-    /* Posisikan titik-titik pagination agar tidak terlalu jauh ke bawah */
+    /* Atur GAP konstan antara sponsor dan titik pagination di HP */
     .sponsor-pagination {
-        margin-top: 12px !important; /* Mengatur jarak dari kotak sponsor ke titik-titik indikator */
+        margin-top: 16px !important; /* GAP konstan di bawah sponsor */
         margin-bottom: 0 !important;
+        position: relative !important;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        z-index: 101;
     }
 }
