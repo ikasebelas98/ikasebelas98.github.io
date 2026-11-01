@@ -132,7 +132,6 @@ window.initTilawahDashboard = async function(user, namaPanggilan) {
         if (adminBtns) adminBtns.classList.remove("hidden");
     }
 }
-}
 
             const configDoc = await getDoc(doc(window.firebaseDb, "settings", "tilawah_config"));
             if (configDoc.exists()) {
