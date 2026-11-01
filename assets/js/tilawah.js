@@ -97,15 +97,42 @@ window.initTilawahDashboard = async function(user, namaPanggilan) {
             const { collection, getDocs, doc, getDoc } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js");
             
             if (user) {
-                const userDoc = await getDoc(doc(window.firebaseDb, "alumni", user.uid));
-                if (userDoc.exists()) {
-                    currentUserRole = userDoc.data().role || "member";
-                    if (currentUserRole === "admin" || currentUserRole === "super_admin") {
-                        const adminBtns = document.getElementById("adminActionButtons");
-                        if (adminBtns) adminBtns.classList.remove("hidden");
-                    }
-                }
-            }
+    const userDoc = await getDoc(doc(window.firebaseDb, "alumni", user.uid));
+    
+    // Ambil email user yang sedang login
+    const userEmail = (user.email || "").trim().toLowerCase();
+    
+    // Daftar email yang diizinkan menjadi Admin Tilawah khusus
+    const allowedTilawahAdmins = [
+        "denzrusmana060f08@gmail.com" // Email NANA OCIN
+    ];
+
+    let isTilawahAdminByEmail = allowedTilawahAdmins.includes(userEmail);
+
+    if (userDoc.exists()) {
+        const userData = userDoc.data();
+        currentUserRole = userData.role || "member";
+
+        const namaPanggilanUpper = (userData.namaPanggilan || "").trim().toUpperCase();
+        const namaLengkapUpper = (userData.namaLengkap || "").trim().toUpperCase();
+
+        const isMainAdmin = (currentUserRole === "admin" || currentUserRole === "super_admin");
+        const isTilawahAdminByName = namaPanggilanUpper.includes("NANA OCIN") || 
+                                     namaLengkapUpper.includes("NANA OCIN") ||
+                                     userData.tilawahRole === "admin";
+
+        if (isMainAdmin || isTilawahAdminByName || isTilawahAdminByEmail) {
+            // Munculkan tombol admin khusus tilawah
+            const adminBtns = document.getElementById("adminActionButtons");
+            if (adminBtns) adminBtns.classList.remove("hidden");
+        }
+    } else if (isTilawahAdminByEmail) {
+        // Fallback jika dokumen profil di koleksi alumni belum terbaca sempurna tapi email cocok
+        const adminBtns = document.getElementById("adminActionButtons");
+        if (adminBtns) adminBtns.classList.remove("hidden");
+    }
+}
+}
 
             const configDoc = await getDoc(doc(window.firebaseDb, "settings", "tilawah_config"));
             if (configDoc.exists()) {
