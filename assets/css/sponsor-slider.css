@@ -393,6 +393,13 @@
 ========================================== */
 
 @media (max-width: 768px) {
+    /* Tambahkan jarak atas dan bawah (gap) khusus versi mobile */
+    .sponsor-slider {
+        margin-top: 24px !important;
+        margin-bottom: 24px !important;
+        padding: 20px 0 !important;
+    }
+
     .sponsor-nav {
         display: none !important;
     }
