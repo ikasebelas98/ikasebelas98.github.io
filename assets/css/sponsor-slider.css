@@ -393,11 +393,12 @@
 ========================================== */
 
 @media (max-width: 768px) {
-    /* Atur jarak atas dan bawah agar seimbang dan proporsional di HP */
     .sponsor-slider {
-        margin-top: 16px !important;    /* Mengurangi gap atas yang terlalu besar */
-        margin-bottom: 24px !important; /* Menambahkan gap bawah agar tidak menempel */
-        padding: 10px 0 !important;
+        /* Kembalikan margin atas dan bawah agar setara/konsisten dengan grid-menu */
+        margin-top: 10px !important;
+        margin-bottom: 10px !important;
+        /* Berikan padding atas dan bawah yang sama persis */
+        padding: 12px 0 !important;
     }
 
     .sponsor-nav {
@@ -411,5 +412,11 @@
     .sponsor-viewport.slot-xs,
     .sponsor-viewport.slot-s {
         display: none !important;
+    }
+
+    /* Posisikan titik-titik pagination agar tidak terlalu jauh ke bawah */
+    .sponsor-pagination {
+        margin-top: 12px !important; /* Mengatur jarak dari kotak sponsor ke titik-titik indikator */
+        margin-bottom: 0 !important;
     }
 }
