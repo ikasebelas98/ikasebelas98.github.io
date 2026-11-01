@@ -393,11 +393,11 @@
 ========================================== */
 
 @media (max-width: 768px) {
-    /* Tambahkan jarak atas dan bawah (gap) khusus versi mobile */
+    /* Atur jarak atas dan bawah agar seimbang dan proporsional di HP */
     .sponsor-slider {
-        margin-top: 24px !important;
-        margin-bottom: 24px !important;
-        padding: 20px 0 !important;
+        margin-top: 16px !important;    /* Mengurangi gap atas yang terlalu besar */
+        margin-bottom: 24px !important; /* Menambahkan gap bawah agar tidak menempel */
+        padding: 10px 0 !important;
     }
 
     .sponsor-nav {
