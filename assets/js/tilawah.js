@@ -728,27 +728,42 @@ window.closeManageModal = function() {
 
 window.saveParticipantToSlot = async function() {
     const selectEl = document.getElementById("alumniDbSelect");
+    const slotInputEl = document.getElementById("manualSlotInput");
     if (!selectEl) return;
+    
     const alumniId = selectEl.value;
-
     if (!alumniId) {
         alert("Silakan pilih alumni terlebih dahulu!");
         return;
     }
 
     const selected = allDbAlumni.find(a => a.id === alumniId);
-    if (selected) {
-        if (assignedParticipants.some(p => p.id === selected.id)) {
-            alert("Alumni ini sudah terdaftar sebagai peserta OWOJ!");
-            return;
-        }
+    if (!selected) return;
 
-        assignedParticipants.push({
-            id: selected.id,
-            namaPanggilan: selected.namaPanggilan || selected.namaLengkap || "Alumni",
-            namaLengkap: selected.namaLengkap || "-",
-            kelas: selected.kelas || "-"
-        });
+    if (assignedParticipants.some(p => p.id === selected.id)) {
+        alert("Alumni ini sudah terdaftar sebagai peserta OWOJ!");
+        return;
+    }
+
+    const newParticipantData = {
+        id: selected.id,
+        namaPanggilan: selected.namaPanggilan || selected.namaLengkap || "Alumni",
+        namaLengkap: selected.namaLengkap || "-",
+        kelas: selected.kelas || "-"
+    };
+
+    // Cek apakah admin memasukkan nomor urut manual
+    const manualSlot = slotInputEl && slotInputEl.value ? parseInt(slotInputEl.value, 10) : null;
+
+    if (manualSlot && manualSlot >= 1 && manualSlot <= 30) {
+        // Konversi ke index array (nomor urut 1 berarti index 0)
+        const targetIndex = manualSlot - 1;
+        
+        // Masukkan atau timpa peserta pada posisi nomor urut tersebut
+        assignedParticipants[targetIndex] = newParticipantData;
+    } else {
+        // Jika tidak diisi, masukkan ke urutan paling akhir
+        assignedParticipants.push(newParticipantData);
     }
 
     try {
@@ -758,13 +773,14 @@ window.saveParticipantToSlot = async function() {
                 participants: assignedParticipants,
                 updatedAt: new Date().toISOString()
             });
-            alert("Peserta OWOJ berhasil ditambahkan!");
+            alert("Peserta OWOJ berhasil ditambahkan pada nomor urut yang dipilih!");
         }
     } catch (err) {
         console.error("Gagal menyimpan ke Firestore:", err);
         alert("Gagal menyimpan data peserta. Error: " + err.message);
     }
 
+    if (slotInputEl) slotInputEl.value = "";
     closeManageModal();
     renderTab1Participants();
     renderTilawahTabs();
