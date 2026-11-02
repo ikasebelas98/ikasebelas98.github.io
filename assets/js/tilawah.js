@@ -176,7 +176,9 @@ function renderTab1Participants() {
     }
 
     const elapsedWeeks = getElapsedWeeks();
-    const isPowerUser = currentUserRole === "admin" || currentUserRole === "super_admin";
+    const userEmail = cachedAuthUser && cachedAuthUser.email ? cachedAuthUser.email.trim().toLowerCase() : "";
+const isTilawahAdminEmail = userEmail === "denzrusmana060f08@gmail.com";
+const isPowerUser = currentUserRole === "admin" || currentUserRole === "super_admin" || isTilawahAdminEmail;
 
     tbody.innerHTML = assignedParticipants.map((p, idx) => {
         const assignedJuz = ((idx + elapsedWeeks) % 30) + 1;
