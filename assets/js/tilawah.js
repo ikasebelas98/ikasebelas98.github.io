@@ -856,7 +856,7 @@ window.removeParticipant = async function(index) {
 };
 
 // ==========================================
-// COLOR WHEEL DYNAMIC PROGRES MINGGUAN (MAKSIMAL & TANPA KOTAK PEMBUNGKUS)
+// COLOR WHEEL DYNAMIC PROGRES MINGGUAN (FULL MAKSIMAL & TANPA KOTAK)
 // ==========================================
 function renderColorWheel() {
     const container = document.getElementById('tab3') || document.querySelector('#tab3 .space-y-8');
@@ -866,7 +866,7 @@ function renderColorWheel() {
     if (!wheelsWrapper) {
         wheelsWrapper = document.createElement('div');
         wheelsWrapper.id = 'colorWheelsDynamicWrapper';
-        wheelsWrapper.className = 'space-y-12';
+        wheelsWrapper.className = 'space-y-12 w-full flex flex-col items-center justify-center';
         
         const hoverInfo = document.getElementById('wheelHoverInfo');
         const parentBox = hoverInfo ? hoverInfo.parentNode : container;
@@ -886,16 +886,16 @@ function renderColorWheel() {
 
     for (let g = 1; g <= totalGroups; g++) {
         const groupCardBox = document.createElement('div');
-        // KOTAK PEMBUNGKUS GELAP DIHILANGKAN (bg-slate-950/95 border border-slate-800 dsb dibuang agar bersih)
-        groupCardBox.className = 'text-center space-y-4 max-w-2xl mx-auto py-2';
+        // KOTAK PEMBUNGKUS LUAR DIHILANGKAN SEPENUHNYA, DIBUAT FULL LEBAR & BERSIH
+        groupCardBox.className = 'w-full max-w-3xl text-center space-y-4 px-2 py-4';
 
-        // Ukuran SVG diperbesar (viewBox lebih luas) dan lingkaran tengah diperkecil
+        // Ukuran kontainer roda diperbesar selebar mungkin (max-w-xl / max-w-2xl)
         groupCardBox.innerHTML = `
             <div>
-                <h2 class="text-2xl font-extrabold text-amber-400">One Week One Juz Progress</h2>
+                <h2 class="text-2xl md:text-3xl font-extrabold text-amber-400">One Week One Juz Progress</h2>
                 <p class="text-xs text-slate-400 mt-1">Status Capaian Tilawah 30 Juz Liqo Tilawah ${g} Pekan Ke-${currentWeekNum}, Bulan ${currentMonthStr}, Tahun ${currentYearStr}</p>
             </div>
-            <div class="relative w-full max-w-lg mx-auto aspect-square flex items-center justify-center p-1">
+            <div class="relative w-full max-w-xl mx-auto aspect-square flex items-center justify-center p-0">
                 <svg id="colorWheelSvg_${g}" viewBox="0 0 600 600" class="w-full h-full drop-shadow-2xl"></svg>
                 <div class="absolute inset-0 m-auto w-24 h-24 md:w-32 md:h-32 bg-slate-950 rounded-full border-2 border-amber-500/30 flex flex-col items-center justify-center p-1 text-center shadow-inner">
                     <span id="wheelTotalPercent_${g}" class="text-2xl md:text-3xl font-black text-amber-400">0%</span>
@@ -909,8 +909,8 @@ function renderColorWheel() {
         const svg = document.getElementById(`colorWheelSvg_${g}`);
         if (!svg) continue;
 
-        // Radius luar ditarik sangat besar (255), lingkaran dalam diperkecil (25) agar batang progres super panjang & maksimal
-        const cx = 300, cy = 300, rOuter = 255, rInner = 25;
+        // Radius luar dimaksimalkan hingga hampir menyentuh tepi SVG (265), radius dalam (22)
+        const cx = 300, cy = 300, rOuter = 265, rInner = 22;
         const totalSlices = 30;
         let totalAccumulatedPercent = 0;
         const startIndex = (g - 1) * 30;
@@ -944,7 +944,7 @@ function renderColorWheel() {
             const x4 = cx + rInner * Math.cos(Math.PI * startAngle / 180);
             const y4 = cy + rInner * Math.sin(Math.PI * startAngle / 180);
 
-            // 1. KEMBALIKAN BATANG LATAR BELAKANG (BACKGROUND SLICES) SEPERTI SEMULA
+            // 1. BATANG LATAR BELAKANG LINGKARAN (BACKGROUND SLICES)
             const bgPathData = `M ${x1} ${y1} A ${rOuter} ${rOuter} 0 0 1 ${x2} ${y2} L ${x3} ${y3} A ${rInner} ${rInner} 0 0 0 ${x4} ${y4} Z`;
             const bgPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
             bgPath.setAttribute("d", bgPathData);
@@ -952,7 +952,7 @@ function renderColorWheel() {
             bgPath.setAttribute("opacity", "0.15");
             svg.appendChild(bgPath);
 
-            // 2. BATANG PROGRES DINAMIS DI ATAS LATAR BELAKANG
+            // 2. BATANG PROGRES DINAMIS
             if (percent > 0) {
                 const dynamicRadius = rInner + ((rOuter - rInner) * (percent / 100));
                 const dx1 = cx + dynamicRadius * Math.cos(Math.PI * startAngle / 180);
