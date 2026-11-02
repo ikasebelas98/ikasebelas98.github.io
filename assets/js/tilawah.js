@@ -856,7 +856,7 @@ window.removeParticipant = async function(index) {
 };
 
 // ==========================================
-// COLOR WHEEL DYNAMIC PROGRES MINGGUAN (MAKSIMAL & BERSIH)
+// COLOR WHEEL DYNAMIC PROGRES MINGGUAN (MAKSIMAL & TANPA KOTAK PEMBUNGKUS)
 // ==========================================
 function renderColorWheel() {
     const container = document.getElementById('tab3') || document.querySelector('#tab3 .space-y-8');
@@ -886,17 +886,18 @@ function renderColorWheel() {
 
     for (let g = 1; g <= totalGroups; g++) {
         const groupCardBox = document.createElement('div');
-        groupCardBox.className = 'bg-slate-900/90 border border-slate-800 rounded-2xl p-6 text-center space-y-4 max-w-xl mx-auto shadow-xl';
+        // KOTAK PEMBUNGKUS GELAP DIHILANGKAN (bg-slate-950/95 border border-slate-800 dsb dibuang agar bersih)
+        groupCardBox.className = 'text-center space-y-4 max-w-2xl mx-auto py-2';
 
-        // Lingkaran tengah diperkecil dan teks label dipecah menjadi 2 baris
+        // Ukuran SVG diperbesar (viewBox lebih luas) dan lingkaran tengah diperkecil
         groupCardBox.innerHTML = `
             <div>
                 <h2 class="text-2xl font-extrabold text-amber-400">One Week One Juz Progress</h2>
                 <p class="text-xs text-slate-400 mt-1">Status Capaian Tilawah 30 Juz Liqo Tilawah ${g} Pekan Ke-${currentWeekNum}, Bulan ${currentMonthStr}, Tahun ${currentYearStr}</p>
             </div>
-            <div class="relative w-full max-w-md mx-auto aspect-square flex items-center justify-center p-2">
-                <svg id="colorWheelSvg_${g}" viewBox="0 0 500 500" class="w-full h-full drop-shadow-2xl"></svg>
-                <div class="absolute inset-0 m-auto w-24 h-24 md:w-32 md:h-32 bg-slate-950/95 rounded-full border-2 border-amber-500/30 flex flex-col items-center justify-center p-1 text-center backdrop-blur-md shadow-inner">
+            <div class="relative w-full max-w-lg mx-auto aspect-square flex items-center justify-center p-1">
+                <svg id="colorWheelSvg_${g}" viewBox="0 0 600 600" class="w-full h-full drop-shadow-2xl"></svg>
+                <div class="absolute inset-0 m-auto w-24 h-24 md:w-32 md:h-32 bg-slate-950 rounded-full border-2 border-amber-500/30 flex flex-col items-center justify-center p-1 text-center shadow-inner">
                     <span id="wheelTotalPercent_${g}" class="text-2xl md:text-3xl font-black text-amber-400">0%</span>
                     <span class="text-[8px] md:text-[9px] text-slate-300 font-semibold mt-0.5 leading-tight">Total Khatam<br>/ minggu</span>
                 </div>
@@ -908,7 +909,8 @@ function renderColorWheel() {
         const svg = document.getElementById(`colorWheelSvg_${g}`);
         if (!svg) continue;
 
-        const cx = 250, cy = 250, rOuter = 225, rInner = 30; // rOuter diperbesar, rInner diperkecil untuk ruang maksimal
+        // Radius luar ditarik sangat besar (255), lingkaran dalam diperkecil (25) agar batang progres super panjang & maksimal
+        const cx = 300, cy = 300, rOuter = 255, rInner = 25;
         const totalSlices = 30;
         let totalAccumulatedPercent = 0;
         const startIndex = (g - 1) * 30;
@@ -933,15 +935,24 @@ function renderColorWheel() {
             const hue = (i * 360 / 30);
             const baseColor = `hsl(${hue}, 85%, 50%)`;
 
-            // Sudut batas kelopak
+            const x1 = cx + rOuter * Math.cos(Math.PI * startAngle / 180);
+            const y1 = cy + rOuter * Math.sin(Math.PI * startAngle / 180);
+            const x2 = cx + rOuter * Math.cos(Math.PI * endAngle / 180);
+            const y2 = cy + rOuter * Math.sin(Math.PI * endAngle / 180);
             const x3 = cx + rInner * Math.cos(Math.PI * endAngle / 180);
             const y3 = cy + rInner * Math.sin(Math.PI * endAngle / 180);
             const x4 = cx + rInner * Math.cos(Math.PI * startAngle / 180);
             const y4 = cy + rInner * Math.sin(Math.PI * startAngle / 180);
 
-            // 1. LATAR BELAKANG KELOPAK (DIHILANGKAN / DIKOSONGKAN SESUAI PERMINTAAN)
+            // 1. KEMBALIKAN BATANG LATAR BELAKANG (BACKGROUND SLICES) SEPERTI SEMULA
+            const bgPathData = `M ${x1} ${y1} A ${rOuter} ${rOuter} 0 0 1 ${x2} ${y2} L ${x3} ${y3} A ${rInner} ${rInner} 0 0 0 ${x4} ${y4} Z`;
+            const bgPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+            bgPath.setAttribute("d", bgPathData);
+            bgPath.setAttribute("fill", baseColor);
+            bgPath.setAttribute("opacity", "0.15");
+            svg.appendChild(bgPath);
 
-            // 2. BATANG PROGRES DINAMIS (Hanya dirender jika persentase > 0)
+            // 2. BATANG PROGRES DINAMIS DI ATAS LATAR BELAKANG
             if (percent > 0) {
                 const dynamicRadius = rInner + ((rOuter - rInner) * (percent / 100));
                 const dx1 = cx + dynamicRadius * Math.cos(Math.PI * startAngle / 180);
@@ -957,7 +968,6 @@ function renderColorWheel() {
                 fillPath.setAttribute("class", "wheel-slice transition-all duration-300");
                 svg.appendChild(fillPath);
 
-                // Angka persentase di dalam batang progres
                 const textProgRadius = dynamicRadius - 12;
                 const tpx = cx + textProgRadius * Math.cos(Math.PI * midAngle / 180);
                 const tpy = cy + textProgRadius * Math.sin(Math.PI * midAngle / 180);
@@ -976,7 +986,7 @@ function renderColorWheel() {
             }
 
             // 3. Label Nomor Juz di Luar Lingkaran
-            const outTextRadius = rOuter + 16;
+            const outTextRadius = rOuter + 18;
             const otx = cx + outTextRadius * Math.cos(Math.PI * midAngle / 180);
             const oty = cy + outTextRadius * Math.sin(Math.PI * midAngle / 180);
 
@@ -984,7 +994,7 @@ function renderColorWheel() {
             outText.setAttribute("x", otx);
             outText.setAttribute("y", oty);
             outText.setAttribute("fill", baseColor);
-            outText.setAttribute("font-size", "10px");
+            outText.setAttribute("font-size", "11px");
             outText.setAttribute("font-weight", "bold");
             outText.setAttribute("text-anchor", "middle");
             outText.setAttribute("dominant-baseline", "central");
@@ -992,15 +1002,7 @@ function renderColorWheel() {
             outText.textContent = `JUZ ${juzNum}`;
             svg.appendChild(outText);
 
-            // Area hover info transparan penangkap mouse
-            const hoverPathData = `M ${cx + rOuter * Math.cos(Math.PI * startAngle / 180)} ${cy + rOuter * Math.sin(Math.PI * startAngle / 180)} A ${rOuter} ${rOuter} 0 0 1 ${cx + rOuter * Math.cos(Math.PI * endAngle / 180)} ${cy + rOuter * Math.sin(Math.PI * endAngle / 180)} L ${x3} ${y3} A ${rInner} ${rInner} 0 0 0 ${x4} ${y4} Z`;
-            const hoverPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
-            hoverPath.setAttribute("d", hoverPathData);
-            hoverPath.setAttribute("fill", "transparent");
-            hoverPath.style.cursor = "pointer";
-            svg.appendChild(hoverPath);
-
-            hoverPath.addEventListener("mouseenter", () => {
+            bgPath.addEventListener("mouseenter", () => {
                 const hoverInfo = document.getElementById("wheelHoverInfo");
                 if (hoverInfo) {
                     hoverInfo.innerHTML = `<strong>LIQO ${g} - JUZ ${juzNum}</strong> | Capaian: ${percent}% Selesai`;
