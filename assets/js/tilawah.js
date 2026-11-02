@@ -170,19 +170,24 @@ function renderTab1Participants() {
     const tbody = document.getElementById("participantTableBody");
     if (!tbody) return;
 
-    if (assignedParticipants.length === 0) {
+    const validParticipants = assignedParticipants.filter(p => p && p.id && p.id !== "empty_slot");
+
+    if (validParticipants.length === 0) {
         tbody.innerHTML = `<tr><td colspan="5" class="p-8 text-center text-slate-500">Belum ada peserta tilawah yang terdaftar.</td></tr>`;
         return;
     }
 
     const elapsedWeeks = getElapsedWeeks();
     const userEmail = cachedAuthUser && cachedAuthUser.email ? cachedAuthUser.email.trim().toLowerCase() : "";
-const isTilawahAdminEmail = userEmail === "denzrusmana060f08@gmail.com";
-const isPowerUser = currentUserRole === "admin" || currentUserRole === "super_admin" || isTilawahAdminEmail;
+    const isTilawahAdminEmail = userEmail === "denzrusmana060f08@gmail.com";
+    const isPowerUser = currentUserRole === "admin" || currentUserRole === "super_admin" || isTilawahAdminEmail;
 
     tbody.innerHTML = assignedParticipants.map((p, idx) => {
+        const isEmpty = !p || !p.id || p.id === "empty_slot";
+        if (isEmpty) return ''; // Sembunyikan baris yang kosong
+
         const assignedJuz = ((idx + elapsedWeeks) % 30) + 1;
-        const namaPanggilan = (p.namaPanggilan || "Alumni").toUpperCase();
+        const namaPanggilan = (p.namaPanggilan || "-").toUpperCase();
         const namaLengkap = p.namaLengkap || "-";
 
         return `
@@ -276,8 +281,19 @@ function renderActiveJuzCards(currentUser) {
 
     container.innerHTML = "";
 
-    if (assignedParticipants.length === 0) {
-        container.innerHTML = `<div class="col-span-full p-12 text-center text-slate-500 bg-slate-900/50 rounded-2xl border border-slate-800">Belum ada kartu Juz yang ditampilkan karena peserta tilawah masih kosong.</div>`;
+    const validParticipants = assignedParticipants.filter(p => p && p.id && p.id !== "empty_slot");
+
+    if (validParticipants.length === 0) {
+        container.innerHTML = `
+            <div class="col-span-full p-8 text-center bg-slate-900 border border-slate-700 rounded-2xl shadow-lg my-4">
+                <p class="text-amber-400 font-bold text-base md:text-lg">
+                    Belum ada kartu Juz yang ditampilkan karena peserta tilawah masih kosong.
+                </p>
+                <p class="text-slate-300 text-xs mt-1">
+                    Silakan tambahkan peserta melalui menu Kelola Peserta.
+                </p>
+            </div>
+        `;
         return;
     }
 
@@ -290,6 +306,10 @@ function renderActiveJuzCards(currentUser) {
     const loggedInPanggilan = cachedNamaPanggilan ? cachedNamaPanggilan.toUpperCase() : "";
 
     groupParticipants.forEach((participant, idx) => {
+        if (!participant || !participant.id || participant.id === "empty_slot") {
+            return;
+        }
+
         const index = startIndex + idx;
         const assignedJuz = getJuzForIndex(index);
         const surahs = QURAN_JUZ_DATA[assignedJuz] || [];
@@ -312,13 +332,8 @@ function renderActiveJuzCards(currentUser) {
         card.className = `juz-card-box ${bgClass} ${isUserAssigned ? 'user-assigned' : ''}`;
         card.id = `juz-btn-${assignedJuz}`;
 
-        // Nama Panggilan: Kotak Gold -> #3b3e3f (abu-abu), Kotak Gelap -> #8698b5
         const nameColorClass = isUserAssigned ? 'text-[#3b3e3f]' : 'text-[#ffffff]';
-
-        // 2. Nomor Urut / Pekan: Kotak Gold -> #ffffff (putih), Kotak Gelap -> #8698b5
         const metaColorClass = isUserAssigned ? 'text-[#ffffff]' : 'text-[#8698b5]';
-
-        // 3. Teks "Progres Bacaan Pekan Ini": Kotak Gold -> #ffffff (putih), Kotak Gelap -> #8698b5
         const progressLabelColorClass = isUserAssigned ? 'text-[#ffffff]' : 'text-[#8698b5]';
 
         let htmlContent = `
@@ -337,43 +352,40 @@ function renderActiveJuzCards(currentUser) {
 
         surahs.forEach((s) => {
             const safeSurahName = s.name.replace(/'/g, "\\'");
+            const initialTextColorClass = isUserAssigned ? "text-[#d1ae55]" : "text-[#8698b5]";
 
-            // Tentukan class warna teks awal berdasarkan apakah kartu tersebut milik user aktif (gold) atau bukan
-const initialTextColorClass = isUserAssigned ? "text-[#d1ae55]" : "text-[#8698b5]";
-
-htmlContent += `
-    <div class="surah-card relative overflow-hidden cursor-pointer transition p-3 rounded-xl bg-slate-800/80 border border-slate-700/60 hover:border-amber-400/50 flex items-center justify-between" onclick="handleSurahCardClick(${assignedJuz}, '${safeSurahName}', '${s.ayat}', this, '${ownerId}', '${assignedName}')">
-        <div class="flex items-center gap-3.5 w-full relative z-10">
-            <div class="surah-number font-black text-3xl shrink-0 text-center ${initialTextColorClass}">${s.no}</div>
-            <div class="surah-info truncate w-full">
-                <div class="font-bold truncate text-[15px] surah-title ${initialTextColorClass}">${s.name}</div>
-                <div class="text-[11px] opacity-80 surah-ayat ${initialTextColorClass}">ayat ${s.ayat}</div>
-            </div>
-        </div>
-        <div class="surat-time-badge hidden shrink-0 text-right pl-3 border-l border-slate-300/40 ml-2 relative z-10">
-            <div class="text-[11px] font-extrabold tracking-wide text-red-500 mb-0.5 done-text">SELESAI</div>
-            <div class="text-[11px] font-bold date-text ${initialTextColorClass}"></div>
-            <div class="text-[10px] font-medium time-text ${initialTextColorClass}"></div>
-        </div>
-    </div>
-`;
+            htmlContent += `
+                <div class="surah-card relative overflow-hidden cursor-pointer transition p-3 rounded-xl bg-slate-800/80 border border-slate-700/60 hover:border-amber-400/50 flex items-center justify-between" onclick="handleSurahCardClick(${assignedJuz}, '${safeSurahName}', '${s.ayat}', this, '${ownerId}', '${assignedName}')">
+                    <div class="flex items-center gap-3.5 w-full relative z-10">
+                        <div class="surah-number font-black text-3xl shrink-0 text-center ${initialTextColorClass}">${s.no}</div>
+                        <div class="surah-info truncate w-full">
+                            <div class="font-bold truncate text-[15px] surah-title ${initialTextColorClass}">${s.name}</div>
+                            <div class="text-[11px] opacity-80 surah-ayat ${initialTextColorClass}">ayat ${s.ayat}</div>
+                        </div>
+                    </div>
+                    <div class="surat-time-badge hidden shrink-0 text-right pl-3 border-l border-slate-300/40 ml-2 relative z-10">
+                        <div class="text-[11px] font-extrabold tracking-wide text-red-500 mb-0.5 done-text">SELESAI</div>
+                        <div class="text-[11px] font-bold date-text ${initialTextColorClass}"></div>
+                        <div class="text-[10px] font-medium time-text ${initialTextColorClass}"></div>
+                    </div>
+                </div>
+            `;
         });
 
-
         htmlContent += `
-        </div>
-    </div>
+                </div>
+            </div>
 
-    <div class="space-y-1 pt-2 border-t ${isUserAssigned ? 'border-[#0f172a]/30' : 'border-white/20'}">
-        <div class="flex justify-between text-[12px] font-semibold opacity-90">
-            <span class="${progressLabelColorClass}">Progres Bacaan Pekan Ini</span>
-            <span class="${isUserAssigned ? 'text-[#ffffff]' : 'text-amber-400'} font-bold progress-text">0%</span>
-        </div>
-        <div class="w-full bg-slate-900/60 h-3 rounded-full overflow-hidden p-0.5 border border-white/20">
-            <div class="bg-amber-400 h-full rounded-full transition-all duration-300 progress-bar-fill" style="width: 0%"></div>
-        </div>
-    </div>
-`;
+            <div class="space-y-1 pt-2 border-t ${isUserAssigned ? 'border-[#0f172a]/30' : 'border-white/20'}">
+                <div class="flex justify-between text-[12px] font-semibold opacity-90">
+                    <span class="${progressLabelColorClass}">Progres Bacaan Pekan Ini</span>
+                    <span class="${isUserAssigned ? 'text-[#ffffff]' : 'text-amber-400'} font-bold progress-text">0%</span>
+                </div>
+                <div class="w-full bg-slate-900/60 h-3 rounded-full overflow-hidden p-0.5 border border-white/20">
+                    <div class="bg-amber-400 h-full rounded-full transition-all duration-300 progress-bar-fill" style="width: 0%"></div>
+                </div>
+            </div>
+        `;
 
         card.innerHTML = htmlContent;
         container.appendChild(card);
@@ -711,9 +723,26 @@ window.openManageModal = function() {
                 return !isAdminOrSuper && !isAlreadyRegistered;
             });
 
-            // 3. Render ke dalam dropdown
+            // 3. Render ke dalam dropdown alumni
             selectEl.innerHTML = '<option value="">-- Pilih Alumni --</option>' + 
                 filteredAlumni.map(a => `<option value="${a.id}">${a.namaLengkap || a.namaPanggilan || 'Alumni'} (${a.namaPanggilan || '-'})</option>`).join('');
+        }
+
+        // 4. Render Dropdown Slot Manual 1 - 60 (Hanya tampilkan slot yang belum terisi)
+        const slotSelectEl = document.getElementById("manualSlotSelect");
+        if (slotSelectEl) {
+            let optionsHtml = '<option value="">-- Pilih Nomor Urut (1 - 60) --</option>';
+            for (let i = 1; i <= 60; i++) {
+                const targetIdx = i - 1;
+                const existingParticipant = assignedParticipants[targetIdx];
+                const isOccupied = existingParticipant && existingParticipant.id && existingParticipant.id !== "empty_slot";
+
+                // Jika slot belum terisi, tampilkan sebagai pilihan di dropdown
+                if (!isOccupied) {
+                    optionsHtml += `<option value="${i}">Nomor Urut ${i}</option>`;
+                }
+            }
+            slotSelectEl.innerHTML = optionsHtml;
         }
     }
 };
@@ -728,7 +757,7 @@ window.closeManageModal = function() {
 
 window.saveParticipantToSlot = async function() {
     const selectEl = document.getElementById("alumniDbSelect");
-    const slotInputEl = document.getElementById("manualSlotInput");
+    const slotSelectEl = document.getElementById("manualSlotSelect");
     if (!selectEl) return;
     
     const alumniId = selectEl.value;
@@ -740,7 +769,7 @@ window.saveParticipantToSlot = async function() {
     const selected = allDbAlumni.find(a => a.id === alumniId);
     if (!selected) return;
 
-    if (assignedParticipants.some(p => p.id === selected.id)) {
+    if (assignedParticipants.some(p => p.id && p.id === selected.id)) {
         alert("Alumni ini sudah terdaftar sebagai peserta OWOJ!");
         return;
     }
@@ -752,35 +781,50 @@ window.saveParticipantToSlot = async function() {
         kelas: selected.kelas || "-"
     };
 
-    // Cek apakah admin memasukkan nomor urut manual
-    const manualSlot = slotInputEl && slotInputEl.value ? parseInt(slotInputEl.value, 10) : null;
+    const manualSlot = slotSelectEl && slotSelectEl.value ? parseInt(slotSelectEl.value, 10) : null;
 
-    if (manualSlot && manualSlot >= 1 && manualSlot <= 30) {
-        // Konversi ke index array (nomor urut 1 berarti index 0)
+    if (manualSlot && manualSlot >= 1 && manualSlot <= 60) {
         const targetIndex = manualSlot - 1;
-        
-        // Masukkan atau timpa peserta pada posisi nomor urut tersebut
+        while (assignedParticipants.length < targetIndex) {
+            assignedParticipants.push({
+                id: "empty_slot",
+                namaPanggilan: "",
+                namaLengkap: "",
+                kelas: "-"
+            });
+        }
         assignedParticipants[targetIndex] = newParticipantData;
     } else {
-        // Jika tidak diisi, masukkan ke urutan paling akhir
         assignedParticipants.push(newParticipantData);
     }
+
+    const cleanParticipants = assignedParticipants.map(p => {
+        if (!p || !p.id) {
+            return {
+                id: "empty_slot",
+                namaPanggilan: "",
+                namaLengkap: "",
+                kelas: "-"
+            };
+        }
+        return p;
+    });
 
     try {
         if (window.firebaseDb) {
             const { doc, setDoc } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js");
             await setDoc(doc(window.firebaseDb, "settings", "tilawah_participants"), {
-                participants: assignedParticipants,
+                participants: cleanParticipants,
                 updatedAt: new Date().toISOString()
             });
-            alert("Peserta OWOJ berhasil ditambahkan pada nomor urut yang dipilih!");
+            alert("Peserta OWOJ berhasil disimpan!");
         }
     } catch (err) {
         console.error("Gagal menyimpan ke Firestore:", err);
         alert("Gagal menyimpan data peserta. Error: " + err.message);
     }
 
-    if (slotInputEl) slotInputEl.value = "";
+    if (slotSelectEl) slotSelectEl.value = "";
     closeManageModal();
     renderTab1Participants();
     renderTilawahTabs();
@@ -812,20 +856,18 @@ window.removeParticipant = async function(index) {
 };
 
 // ==========================================
-// COLOR WHEEL DYNAMIC PROGRES MINGGUAN (MULTI-KELOMPOK LIQO)
+// COLOR WHEEL DYNAMIC PROGRES MINGGUAN (MAKSIMAL & BERSIH)
 // ==========================================
 function renderColorWheel() {
     const container = document.getElementById('tab3') || document.querySelector('#tab3 .space-y-8');
     if (!container) return;
 
-    // Cari atau buat wadah utama untuk menampung roda progres (bisa lebih dari 1 jika ada Liqo 2, 3, dst.)
     let wheelsWrapper = document.getElementById('colorWheelsDynamicWrapper');
     if (!wheelsWrapper) {
         wheelsWrapper = document.createElement('div');
         wheelsWrapper.id = 'colorWheelsDynamicWrapper';
         wheelsWrapper.className = 'space-y-12';
         
-        // Sisipkan sebelum kotak info hover
         const hoverInfo = document.getElementById('wheelHoverInfo');
         const parentBox = hoverInfo ? hoverInfo.parentNode : container;
         parentBox.insertBefore(wheelsWrapper, hoverInfo);
@@ -833,24 +875,20 @@ function renderColorWheel() {
 
     wheelsWrapper.innerHTML = '';
 
-    // Hitung jumlah kelompok liqo berdasarkan total peserta (1 kelompok = 30 peserta)
     const totalParticipants = assignedParticipants.length;
     const totalGroups = Math.max(1, Math.ceil(totalParticipants / 30));
-
     const currentWeekNum = getElapsedWeeks() + 1;
     
-    // Ambil nama bulan dan tahun saat ini dalam Bahasa Indonesia
     const monthsName = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
     const now = new Date();
     const currentMonthStr = monthsName[now.getMonth()];
     const currentYearStr = now.getFullYear();
 
-    // Loop pembuatan roda warna untuk setiap Kelompok Liqo Tilawah
     for (let g = 1; g <= totalGroups; g++) {
         const groupCardBox = document.createElement('div');
         groupCardBox.className = 'bg-slate-900/90 border border-slate-800 rounded-2xl p-6 text-center space-y-4 max-w-xl mx-auto shadow-xl';
 
-        // Judul & Sub-judul per Kelompok
+        // Lingkaran tengah diperkecil dan teks label dipecah menjadi 2 baris
         groupCardBox.innerHTML = `
             <div>
                 <h2 class="text-2xl font-extrabold text-amber-400">One Week One Juz Progress</h2>
@@ -858,35 +896,27 @@ function renderColorWheel() {
             </div>
             <div class="relative w-full max-w-md mx-auto aspect-square flex items-center justify-center p-2">
                 <svg id="colorWheelSvg_${g}" viewBox="0 0 500 500" class="w-full h-full drop-shadow-2xl"></svg>
-                <div class="absolute inset-0 m-auto w-28 h-28 md:w-36 md:h-36 bg-slate-950/95 rounded-full border-2 border-amber-500/30 flex flex-col items-center justify-center p-2 text-center backdrop-blur-md shadow-inner">
+                <div class="absolute inset-0 m-auto w-24 h-24 md:w-32 md:h-32 bg-slate-950/95 rounded-full border-2 border-amber-500/30 flex flex-col items-center justify-center p-1 text-center backdrop-blur-md shadow-inner">
                     <span id="wheelTotalPercent_${g}" class="text-2xl md:text-3xl font-black text-amber-400">0%</span>
-                    <span class="text-[9px] md:text-[10px] text-slate-300 font-semibold mt-0.5">Total Khatam/minggu</span>
+                    <span class="text-[8px] md:text-[9px] text-slate-300 font-semibold mt-0.5 leading-tight">Total Khatam<br>/ minggu</span>
                 </div>
             </div>
         `;
 
         wheelsWrapper.appendChild(groupCardBox);
 
-        // Render SVG Color Wheel untuk kelompok ke-g
         const svg = document.getElementById(`colorWheelSvg_${g}`);
         if (!svg) continue;
 
-        const cx = 250, cy = 250, rOuter = 210, rInner = 45; // Lingkaran tengah diperkecil lagi (rInner = 45)
+        const cx = 250, cy = 250, rOuter = 225, rInner = 30; // rOuter diperbesar, rInner diperkecil untuk ruang maksimal
         const totalSlices = 30;
         let totalAccumulatedPercent = 0;
-
         const startIndex = (g - 1) * 30;
 
         for (let i = 0; i < totalSlices; i++) {
             const juzNum = i + 1;
-            const globalParticipantIdx = startIndex + i;
-            
-            // Cek apakah slot peserta ada & hitung progresnya
-            const juzCard = document.getElementById(`juz-btn-${juzNum}`);
             let percent = 0;
-            
-            // Jika kelompok > 1, kita cek card berdasarkan rentang grup
-            const targetJuzCard = (g === 1) ? document.getElementById(`juz-btn-${juzNum}`) : document.querySelectorAll('.juz-card-box')[startIndex + i];
+            const targetJuzCard = document.getElementById(`juz-btn-${juzNum}`);
             
             if (targetJuzCard) {
                 const totalSurahs = targetJuzCard.querySelectorAll('.surah-card').length;
@@ -900,29 +930,18 @@ function renderColorWheel() {
             const startAngle = (i * 360 / totalSlices) - 90;
             const endAngle = ((i + 1) * 360 / totalSlices) - 90;
             const midAngle = (startAngle + endAngle) / 2;
-
             const hue = (i * 360 / 30);
             const baseColor = `hsl(${hue}, 85%, 50%)`;
 
-            // 1. Kelopak Background
-            const x1 = cx + rOuter * Math.cos(Math.PI * startAngle / 180);
-            const y1 = cy + rOuter * Math.sin(Math.PI * startAngle / 180);
-            const x2 = cx + rOuter * Math.cos(Math.PI * endAngle / 180);
-            const y2 = cy + rOuter * Math.sin(Math.PI * endAngle / 180);
+            // Sudut batas kelopak
             const x3 = cx + rInner * Math.cos(Math.PI * endAngle / 180);
             const y3 = cy + rInner * Math.sin(Math.PI * endAngle / 180);
             const x4 = cx + rInner * Math.cos(Math.PI * startAngle / 180);
             const y4 = cy + rInner * Math.sin(Math.PI * startAngle / 180);
 
-            const bgPathData = `M ${x1} ${y1} A ${rOuter} ${rOuter} 0 0 1 ${x2} ${y2} L ${x3} ${y3} A ${rInner} ${rInner} 0 0 0 ${x4} ${y4} Z`;
-            
-            const bgPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
-            bgPath.setAttribute("d", bgPathData);
-            bgPath.setAttribute("fill", baseColor);
-            bgPath.setAttribute("opacity", "0.15");
-            svg.appendChild(bgPath);
+            // 1. LATAR BELAKANG KELOPAK (DIHILANGKAN / DIKOSONGKAN SESUAI PERMINTAAN)
 
-            // 2. Batang Progres Dinamis Sesuai Persentase (%)
+            // 2. BATANG PROGRES DINAMIS (Hanya dirender jika persentase > 0)
             if (percent > 0) {
                 const dynamicRadius = rInner + ((rOuter - rInner) * (percent / 100));
                 const dx1 = cx + dynamicRadius * Math.cos(Math.PI * startAngle / 180);
@@ -938,8 +957,8 @@ function renderColorWheel() {
                 fillPath.setAttribute("class", "wheel-slice transition-all duration-300");
                 svg.appendChild(fillPath);
 
-                // Angka persentase di ujung batang progres kelopak
-                const textProgRadius = dynamicRadius - 14;
+                // Angka persentase di dalam batang progres
+                const textProgRadius = dynamicRadius - 12;
                 const tpx = cx + textProgRadius * Math.cos(Math.PI * midAngle / 180);
                 const tpy = cy + textProgRadius * Math.sin(Math.PI * midAngle / 180);
 
@@ -956,8 +975,8 @@ function renderColorWheel() {
                 svg.appendChild(progText);
             }
 
-            // 3. Nama/Nomor Juz di Luar Lingkaran (Warna disamakan dengan kelopaknya)
-            const outTextRadius = rOuter + 18;
+            // 3. Label Nomor Juz di Luar Lingkaran
+            const outTextRadius = rOuter + 16;
             const otx = cx + outTextRadius * Math.cos(Math.PI * midAngle / 180);
             const oty = cy + outTextRadius * Math.sin(Math.PI * midAngle / 180);
 
@@ -973,8 +992,15 @@ function renderColorWheel() {
             outText.textContent = `JUZ ${juzNum}`;
             svg.appendChild(outText);
 
-            // Event Hover Info
-            bgPath.addEventListener("mouseenter", () => {
+            // Area hover info transparan penangkap mouse
+            const hoverPathData = `M ${cx + rOuter * Math.cos(Math.PI * startAngle / 180)} ${cy + rOuter * Math.sin(Math.PI * startAngle / 180)} A ${rOuter} ${rOuter} 0 0 1 ${cx + rOuter * Math.cos(Math.PI * endAngle / 180)} ${cy + rOuter * Math.sin(Math.PI * endAngle / 180)} L ${x3} ${y3} A ${rInner} ${rInner} 0 0 0 ${x4} ${y4} Z`;
+            const hoverPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+            hoverPath.setAttribute("d", hoverPathData);
+            hoverPath.setAttribute("fill", "transparent");
+            hoverPath.style.cursor = "pointer";
+            svg.appendChild(hoverPath);
+
+            hoverPath.addEventListener("mouseenter", () => {
                 const hoverInfo = document.getElementById("wheelHoverInfo");
                 if (hoverInfo) {
                     hoverInfo.innerHTML = `<strong>LIQO ${g} - JUZ ${juzNum}</strong> | Capaian: ${percent}% Selesai`;
@@ -982,7 +1008,6 @@ function renderColorWheel() {
             });
         }
 
-        // Set Persentase Rata-rata di Lingkaran Tengah
         const groupAveragePercent = Math.round(totalAccumulatedPercent / 30);
         const groupPercentEl = document.getElementById(`wheelTotalPercent_${g}`);
         if (groupPercentEl) {
