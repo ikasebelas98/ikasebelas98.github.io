@@ -884,131 +884,135 @@ function renderColorWheel() {
     const currentMonthStr = monthsName[now.getMonth()];
     const currentYearStr = now.getFullYear();
 
-    for (let g = 1; g <= totalGroups; g++) {
-        const groupCardBox = document.createElement('div');
-        // KOTAK PEMBUNGKUS LUAR DIHILANGKAN SEPENUHNYA, DIBUAT FULL LEBAR & BERSIH
-        groupCardBox.className = 'w-full max-w-3xl text-center space-y-4 px-2 py-4';
+    // Di dalam fungsi renderColorWheel()
+for (let g = 1; g <= totalGroups; g++) {
+    const groupCardBox = document.createElement('div');
+    groupCardBox.className = 'w-full max-w-3xl text-center space-y-4 px-2 py-4';
 
-        // Ukuran kontainer roda diperbesar selebar mungkin (max-w-xl / max-w-2xl)
-        groupCardBox.innerHTML = `
-            <div>
-                <h2 class="text-2xl md:text-3xl font-extrabold text-amber-400">One Week One Juz Progress</h2>
-                <p class="text-xs text-slate-400 mt-1">Status Capaian Tilawah 30 Juz Liqo Tilawah ${g} Pekan Ke-${currentWeekNum}, Bulan ${currentMonthStr}, Tahun ${currentYearStr}</p>
-            </div>
-            <div class="relative w-full max-w-xl mx-auto aspect-square flex items-center justify-center p-0">
-                <svg id="colorWheelSvg_${g}" viewBox="0 0 600 600" class="w-full h-full drop-shadow-2xl"></svg>
-                <div class="absolute inset-0 m-auto w-24 h-24 md:w-32 md:h-32 bg-slate-950 rounded-full border-2 border-amber-500/30 flex flex-col items-center justify-center p-1 text-center shadow-inner">
-                    <span id="wheelTotalPercent_${g}" class="text-2xl md:text-3xl font-black text-amber-400">0%</span>
-                    <span class="text-[8px] md:text-[9px] text-slate-300 font-semibold mt-0.5 leading-tight">Total Khatam<br>/ minggu</span>
-                </div>
-            </div>
-        `;
+    // Di dalam fungsi renderColorWheel()
+// Di dalam fungsi renderColorWheel()
+groupCardBox.innerHTML = `
+    <div>
+        <h2 class="text-2xl md:text-3xl font-extrabold text-amber-400">One Week One Juz Progress</h2>
+        <p class="text-xs text-slate-400 mt-1">Status Capaian Tilawah 30 Juz Liqo Tilawah ${g} Pekan Ke-${currentWeekNum}, Bulan ${currentMonthStr}, Tahun ${currentYearStr}</p>
+    </div>
+    <!-- KONTROL UKURAN TAMPILAN DI SINI: Ubah max-w-xl menjadi max-w-2xl atau max-w-3xl agar roda tampil lebih besar -->
+    <div class="relative w-full max-w-2xl mx-auto aspect-square flex items-center justify-center p-0">
+        <!-- Tetap gunakan viewBox 600x600 agar ukuran fisik roda tetap maksimal -->
+        <svg id="colorWheelSvg_${g}" viewBox="0 0 600 600" class="w-full h-full drop-shadow-2xl overflow-visible"></svg>
+        <div class="absolute inset-0 m-auto w-16 h-16 md:w-24 md:h-24 bg-slate-950 rounded-full border-2 border-amber-500/30 flex flex-col items-center justify-center p-1 text-center shadow-inner">
+            <span id="wheelTotalPercent_${g}" class="text-xl md:text-2xl font-black text-amber-400">0%</span>
+            <span class="text-[7px] md:text-[8px] text-slate-300 font-semibold mt-0.5 leading-tight">Total Khatam<br>/ minggu</span>
+        </div>
+    </div>
+`;
 
-        wheelsWrapper.appendChild(groupCardBox);
+wheelsWrapper.appendChild(groupCardBox);
 
-        const svg = document.getElementById(`colorWheelSvg_${g}`);
-        if (!svg) continue;
+const svg = document.getElementById(`colorWheelSvg_${g}`);
+if (!svg) continue;
 
-        // Radius luar dimaksimalkan hingga hampir menyentuh tepi SVG (265), radius dalam (22)
-        const cx = 300, cy = 300, rOuter = 265, rInner = 22;
-        const totalSlices = 30;
-        let totalAccumulatedPercent = 0;
-        const startIndex = (g - 1) * 30;
+// Titik tengah kembali ke 300, 300. 
+// rOuter diset ke 245 agar roda besar dan menyisakan ruang untuk teks label di luar.
+const cx = 300, cy = 300, rOuter = 245, rInner = 15;
+const totalSlices = 30;
+let totalAccumulatedPercent = 0;
+const startIndex = (g - 1) * 30;
 
-        for (let i = 0; i < totalSlices; i++) {
-            const juzNum = i + 1;
-            let percent = 0;
-            const targetJuzCard = document.getElementById(`juz-btn-${juzNum}`);
-            
-            if (targetJuzCard) {
-                const totalSurahs = targetJuzCard.querySelectorAll('.surah-card').length;
-                const completedSurahs = targetJuzCard.querySelectorAll('.surah-card.completed').length;
-                if (totalSurahs > 0) {
-                    percent = Math.round((completedSurahs / totalSurahs) * 100);
-                }
-            }
-            totalAccumulatedPercent += percent;
-
-            const startAngle = (i * 360 / totalSlices) - 90;
-            const endAngle = ((i + 1) * 360 / totalSlices) - 90;
-            const midAngle = (startAngle + endAngle) / 2;
-            const hue = (i * 360 / 30);
-            const baseColor = `hsl(${hue}, 85%, 50%)`;
-
-            const x1 = cx + rOuter * Math.cos(Math.PI * startAngle / 180);
-            const y1 = cy + rOuter * Math.sin(Math.PI * startAngle / 180);
-            const x2 = cx + rOuter * Math.cos(Math.PI * endAngle / 180);
-            const y2 = cy + rOuter * Math.sin(Math.PI * endAngle / 180);
-            const x3 = cx + rInner * Math.cos(Math.PI * endAngle / 180);
-            const y3 = cy + rInner * Math.sin(Math.PI * endAngle / 180);
-            const x4 = cx + rInner * Math.cos(Math.PI * startAngle / 180);
-            const y4 = cy + rInner * Math.sin(Math.PI * startAngle / 180);
-
-            // 1. BATANG LATAR BELAKANG LINGKARAN (BACKGROUND SLICES)
-            const bgPathData = `M ${x1} ${y1} A ${rOuter} ${rOuter} 0 0 1 ${x2} ${y2} L ${x3} ${y3} A ${rInner} ${rInner} 0 0 0 ${x4} ${y4} Z`;
-            const bgPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
-            bgPath.setAttribute("d", bgPathData);
-            bgPath.setAttribute("fill", baseColor);
-            bgPath.setAttribute("opacity", "0.15");
-            svg.appendChild(bgPath);
-
-            // 2. BATANG PROGRES DINAMIS
-            if (percent > 0) {
-                const dynamicRadius = rInner + ((rOuter - rInner) * (percent / 100));
-                const dx1 = cx + dynamicRadius * Math.cos(Math.PI * startAngle / 180);
-                const dy1 = cy + dynamicRadius * Math.sin(Math.PI * startAngle / 180);
-                const dx2 = cx + dynamicRadius * Math.cos(Math.PI * endAngle / 180);
-                const dy2 = cy + dynamicRadius * Math.sin(Math.PI * endAngle / 180);
-
-                const fillPathData = `M ${dx1} ${dy1} A ${dynamicRadius} ${dynamicRadius} 0 0 1 ${dx2} ${dy2} L ${x3} ${y3} A ${rInner} ${rInner} 0 0 0 ${x4} ${y4} Z`;
-                
-                const fillPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
-                fillPath.setAttribute("d", fillPathData);
-                fillPath.setAttribute("fill", baseColor);
-                fillPath.setAttribute("class", "wheel-slice transition-all duration-300");
-                svg.appendChild(fillPath);
-
-                const textProgRadius = dynamicRadius - 12;
-                const tpx = cx + textProgRadius * Math.cos(Math.PI * midAngle / 180);
-                const tpy = cy + textProgRadius * Math.sin(Math.PI * midAngle / 180);
-
-                const progText = document.createElementNS("http://www.w3.org/2000/svg", "text");
-                progText.setAttribute("x", tpx);
-                progText.setAttribute("y", tpy);
-                progText.setAttribute("fill", "#0f172a");
-                progText.setAttribute("font-size", "9px");
-                progText.setAttribute("font-weight", "bold");
-                progText.setAttribute("text-anchor", "middle");
-                progText.setAttribute("dominant-baseline", "central");
-                progText.setAttribute("transform", `rotate(${midAngle + 90}, ${tpx}, ${tpy})`);
-                progText.textContent = `${percent}%`;
-                svg.appendChild(progText);
-            }
-
-            // 3. Label Nomor Juz di Luar Lingkaran
-            const outTextRadius = rOuter + 18;
-            const otx = cx + outTextRadius * Math.cos(Math.PI * midAngle / 180);
-            const oty = cy + outTextRadius * Math.sin(Math.PI * midAngle / 180);
-
-            const outText = document.createElementNS("http://www.w3.org/2000/svg", "text");
-            outText.setAttribute("x", otx);
-            outText.setAttribute("y", oty);
-            outText.setAttribute("fill", baseColor);
-            outText.setAttribute("font-size", "11px");
-            outText.setAttribute("font-weight", "bold");
-            outText.setAttribute("text-anchor", "middle");
-            outText.setAttribute("dominant-baseline", "central");
-            outText.setAttribute("transform", `rotate(${midAngle + 90}, ${otx}, ${oty})`);
-            outText.textContent = `JUZ ${juzNum}`;
-            svg.appendChild(outText);
-
-            bgPath.addEventListener("mouseenter", () => {
-                const hoverInfo = document.getElementById("wheelHoverInfo");
-                if (hoverInfo) {
-                    hoverInfo.innerHTML = `<strong>LIQO ${g} - JUZ ${juzNum}</strong> | Capaian: ${percent}% Selesai`;
-                }
-            });
+for (let i = 0; i < totalSlices; i++) {
+    const juzNum = i + 1;
+    let percent = 0;
+    const targetJuzCard = document.getElementById(`juz-btn-${juzNum}`);
+    
+    if (targetJuzCard) {
+        const totalSurahs = targetJuzCard.querySelectorAll('.surah-card').length;
+        const completedSurahs = targetJuzCard.querySelectorAll('.surah-card.completed').length;
+        if (totalSurahs > 0) {
+            percent = Math.round((completedSurahs / totalSurahs) * 100);
         }
+    }
+    totalAccumulatedPercent += percent;
+
+    const startAngle = (i * 360 / totalSlices) - 90;
+    const endAngle = ((i + 1) * 360 / totalSlices) - 90;
+    const midAngle = (startAngle + endAngle) / 2;
+    const hue = (i * 360 / 30);
+    const baseColor = `hsl(${hue}, 85%, 50%)`;
+
+    const x1 = cx + rOuter * Math.cos(Math.PI * startAngle / 180);
+    const y1 = cy + rOuter * Math.sin(Math.PI * startAngle / 180);
+    const x2 = cx + rOuter * Math.cos(Math.PI * endAngle / 180);
+    const y2 = cy + rOuter * Math.sin(Math.PI * endAngle / 180);
+    const x3 = cx + rInner * Math.cos(Math.PI * endAngle / 180);
+    const y3 = cy + rInner * Math.sin(Math.PI * endAngle / 180);
+    const x4 = cx + rInner * Math.cos(Math.PI * startAngle / 180);
+    const y4 = cy + rInner * Math.sin(Math.PI * startAngle / 180);
+
+    // 1. BATANG LATAR BELAKANG LINGKARAN
+    const bgPathData = `M ${x1} ${y1} A ${rOuter} ${rOuter} 0 0 1 ${x2} ${y2} L ${x3} ${y3} A ${rInner} ${rInner} 0 0 0 ${x4} ${y4} Z`;
+    const bgPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    bgPath.setAttribute("d", bgPathData);
+    bgPath.setAttribute("fill", baseColor);
+    bgPath.setAttribute("opacity", "0.15");
+    svg.appendChild(bgPath);
+
+    // 2. BATANG PROGRES DINAMIS
+    if (percent > 0) {
+        const dynamicRadius = rInner + ((rOuter - rInner) * (percent / 100));
+        const dx1 = cx + dynamicRadius * Math.cos(Math.PI * startAngle / 180);
+        const dy1 = cy + dynamicRadius * Math.sin(Math.PI * startAngle / 180);
+        const dx2 = cx + dynamicRadius * Math.cos(Math.PI * endAngle / 180);
+        const dy2 = cy + dynamicRadius * Math.sin(Math.PI * endAngle / 180);
+
+        const fillPathData = `M ${dx1} ${dy1} A ${dynamicRadius} ${dynamicRadius} 0 0 1 ${dx2} ${dy2} L ${x3} ${y3} A ${rInner} ${rInner} 0 0 0 ${x4} ${y4} Z`;
+        
+        const fillPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        fillPath.setAttribute("d", fillPathData);
+        fillPath.setAttribute("fill", baseColor);
+        fillPath.setAttribute("class", "wheel-slice transition-all duration-300");
+        svg.appendChild(fillPath);
+
+        const textProgRadius = dynamicRadius - 12;
+        const tpx = cx + textProgRadius * Math.cos(Math.PI * midAngle / 180);
+        const tpy = cy + textProgRadius * Math.sin(Math.PI * midAngle / 180);
+
+        const progText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        progText.setAttribute("x", tpx);
+        progText.setAttribute("y", tpy);
+        progText.setAttribute("fill", "#0f172a");
+        progText.setAttribute("font-size", "9px");
+        progText.setAttribute("font-weight", "bold");
+        progText.setAttribute("text-anchor", "middle");
+        progText.setAttribute("dominant-baseline", "central");
+        progText.setAttribute("transform", `rotate(${midAngle + 90}, ${tpx}, ${tpy})`);
+        progText.textContent = `${percent}%`;
+        svg.appendChild(progText);
+    }
+
+    // 3. Label Nomor Juz di Luar Lingkaran (Jarak aman dengan viewBox 700)
+    const outTextRadius = rOuter + 22;
+    const otx = cx + outTextRadius * Math.cos(Math.PI * midAngle / 180);
+    const oty = cy + outTextRadius * Math.sin(Math.PI * midAngle / 180);
+
+    const outText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    outText.setAttribute("x", otx);
+    outText.setAttribute("y", oty);
+    outText.setAttribute("fill", baseColor);
+    outText.setAttribute("font-size", "11px");
+    outText.setAttribute("font-weight", "bold");
+    outText.setAttribute("text-anchor", "middle");
+    outText.setAttribute("dominant-baseline", "central");
+    outText.setAttribute("transform", `rotate(${midAngle + 90}, ${otx}, ${oty})`);
+    outText.textContent = `JUZ ${juzNum}`;
+    svg.appendChild(outText);
+
+    bgPath.addEventListener("mouseenter", () => {
+        const hoverInfo = document.getElementById("wheelHoverInfo");
+        if (hoverInfo) {
+            hoverInfo.innerHTML = `<strong>LIQO ${g} - JUZ ${juzNum}</strong> | Capaian: ${percent}% Selesai`;
+        }
+    });
+}
 
         const groupAveragePercent = Math.round(totalAccumulatedPercent / 30);
         const groupPercentEl = document.getElementById(`wheelTotalPercent_${g}`);
