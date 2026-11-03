@@ -227,14 +227,7 @@
                     </div>
                 </div>
 
-                <div class="flex items-baseline">
-                    <span class="w-[115px] shrink-0 text-[9px] uppercase tracking-wider text-slate-400 font-medium">STATUS PERNIKAHAN</span>
-                    <div class="flex-grow flex items-baseline gap-1.5">
-                        <span class="text-[9px] text-slate-400 font-medium">:</span>
-                        <span id="modalMaritalStatus" class="text-sm font-bold text-white"></span>
-                    </div>
-                </div>
-
+                
                 <div class="flex items-baseline">
                     <span class="w-[115px] shrink-0 text-[9px] uppercase tracking-wider text-slate-400 font-medium">KELAS MASA SMA</span>
                     <div class="flex-grow flex items-baseline gap-1.5">
@@ -504,33 +497,43 @@
         });
 
         // Load Data Alumni dari Firestore (Saring Akun Admin/Superadmin)
-        async function loadDatabaseAlumni() {
-            const gridEl = document.getElementById("alumniGrid");
-            try {
-                const querySnap = await getDocs(collection(db, "alumni"));
-                allAlumniData = [];
-                
-                querySnap.forEach((docSnap) => {
-                    const data = docSnap.data();
-                    const role = (data.role || "").toLowerCase();
-                    const email = (data.email || "").toLowerCase();
-                    const namaLengkap = (data.namaLengkap || "").toLowerCase();
+async function loadDatabaseAlumni() {
+    const gridEl = document.getElementById("alumniGrid");
+    try {
+        const querySnap = await getDocs(collection(db, "alumni"));
+        allAlumniData = [];
+        
+        querySnap.forEach((docSnap) => {
+            const data = docSnap.data();
+            const role = (data.role || "").toLowerCase();
+            const email = (data.email || "").toLowerCase();
+            const namaLengkap = (data.namaLengkap || "").toLowerCase();
 
-                    // PENYARINGAN AKUN: Abaikan akun dengan role admin/super_admin atau akun khusus sistem
-                    const isAdminAccount = role === "admin" || role === "super_admin" || 
-                                           email.includes("admin") || namaLengkap.includes("admin");
+            // PENYARINGAN AKUN: Abaikan akun dengan role admin/super_admin atau akun khusus sistem
+            const isAdminAccount = role === "admin" || role === "super_admin" || 
+                                   email.includes("admin") || namaLengkap.includes("admin");
 
-                    if (!isAdminAccount) {
-                        allAlumniData.push({ id: docSnap.id, ...data });
-                    }
-                });
-
-                renderAlumniGrid(allAlumniData);
-            } catch (err) {
-                console.error("Gagal memuat database:", err);
-                gridEl.innerHTML = `<div class="col-span-full text-center py-8 text-red-400">Gagal memuat data database alumni.</div>`;
+            if (!isAdminAccount) {
+                allAlumniData.push({ id: docSnap.id, ...data });
             }
-        }
+        });
+
+        // ==========================================
+        // URUTKAN BERDASARKAN NO. ANGGOTA / NO. URUT
+        // ==========================================
+        allAlumniData.sort((a, b) => {
+            // Menggunakan noUrut (angka) jika tersedia, atau membandingkan string noAnggota
+            const urutA = a.noUrut || 0;
+            const urutB = b.noUrut || 0;
+            return urutA - urutB; // Urut dari yang terkecil (paling awal daftar) ke terbesar
+        });
+
+        renderAlumniGrid(allAlumniData);
+    } catch (err) {
+        console.error("Gagal memuat database:", err);
+        gridEl.innerHTML = `<div class="col-span-full text-center py-8 text-red-400">Gagal memuat data database alumni.</div>`;
+    }
+}
 
         // Fungsi Pembantu: Normalisasi Format Kelas Lama ke Format Baru
         function formatKelasSMA(kelasRaw) {
@@ -666,7 +669,7 @@
             const fieldsToReset = [
                 "modalNamaLengkap", "modalNamaPanggilan", "modalTempatLahir", "modalTanggalLahir", 
                 "modalWhatsapp", "modalDomisili", "modalInstagram", "modalLinkedin", 
-                "modalFacebook", "modalTiktok", "modalMaritalStatus", "modalHobby", 
+                "modalFacebook", "modalTiktok", "modalHobby", 
                 "modalMinatBakat", "modalEmail", "modalKelas"
             ];
 
@@ -700,7 +703,6 @@
             document.getElementById("modalInstagram").innerText = alumni.instagram ? (alumni.instagram.startsWith('@') ? alumni.instagram : `@${alumni.instagram}`) : "-";
             document.getElementById("modalFacebook").innerText = alumni.facebook || "-";
             document.getElementById("modalTiktok").innerText = alumni.tiktok ? (alumni.tiktok.startsWith('@') ? alumni.tiktok : `@${alumni.tiktok}`) : "-";
-            document.getElementById("modalMaritalStatus").innerText = alumni.maritalStatus || "-";
             document.getElementById("modalHobby").innerText = alumni.hobby || "-";
             document.getElementById("modalMinatBakat").innerText = alumni.minatBakat || "-";
 
@@ -855,21 +857,7 @@
                     el.innerHTML = `<input type="${inputType}" id="${item.key}" value="${item.val || ''}" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-slate-100 focus:border-amber-500 focus:outline-none">`;
                 }
             });
-
-            // 2. Status Pernikahan (Dropdown)
-            const elMarital = document.getElementById("modalMaritalStatus");
-            if (elMarital) {
-                elMarital.dataset.originalText = elMarital.innerText;
-                const currentMarital = alumni.maritalStatus || "";
-                elMarital.innerHTML = `
-                    <select id="editMaritalStatus" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-slate-100 focus:border-amber-500 focus:outline-none">
-                        <option value="Belum Menikah" ${currentMarital === "Belum Menikah" ? "selected" : ""}>Belum Menikah</option>
-                        <option value="Menikah" ${currentMarital === "Menikah" ? "selected" : ""}>Menikah</option>
-                        <option value="Lainnya" ${currentMarital === "Lainnya" ? "selected" : ""}>Lainnya</option>
-                    </select>
-                `;
-            }
-
+            
             // 3. Status Pekerjaan (Dropdown)
             const elStatusPekerjaan = document.getElementById("modalStatusPekerjaan");
             if (elStatusPekerjaan) {
@@ -941,7 +929,6 @@
                     whatsapp: document.getElementById("editWhatsapp").value.trim(),
                     domisili: document.getElementById("editDomisili").value.trim(),
                     email: document.getElementById("editEmail").value.trim(),
-                    maritalStatus: document.getElementById("editMaritalStatus").value,
                     statusPekerjaan: statusPekerjaanVal,
                     instagram: document.getElementById("editInstagram").value.trim(),
                     linkedin: document.getElementById("editLinkedin").value.trim(),
