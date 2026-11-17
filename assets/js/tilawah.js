@@ -49,6 +49,7 @@ const QURAN_JUZ_DATA = {
 };
 
 let officialStartDate = null;
+let manualWeekOffset = 0; // Offset aman untuk pergeseran manual tanpa merusak data report database
 let allDbAlumni = [];
 let assignedParticipants = [];
 let currentUserRole = "member";
@@ -60,11 +61,31 @@ let generatedReportImageUrl = "";
 
 function getElapsedWeeks() {
     if (!officialStartDate) return 0;
+    
     const now = new Date();
     const start = new Date(officialStartDate);
-    if (now < start) return 0;
-    const diffTime = now - start;
-    return Math.floor(diffTime / (1000 * 60 * 60 * 24 * 7));
+    
+    // Normalisasi waktu start ke hari Senin terdekat pukul 00:00:00 WIB
+    const startDay = start.getDay();
+    const diffToMondayStart = startDay === 0 ? -6 : 1 - startDay;
+    const startMonday = new Date(start);
+    startMonday.setDate(start.getDate() + diffToMondayStart);
+    startMonday.setHours(0, 0, 0, 0);
+
+    // Normalisasi waktu sekarang ke hari Senin terdekat pukul 00:00:00 WIB
+    const nowDay = now.getDay();
+    const diffToMondayNow = nowDay === 0 ? -6 : 1 - nowDay;
+    const nowMonday = new Date(now);
+    nowMonday.setDate(now.getDate() + diffToMondayNow);
+    nowMonday.setHours(0, 0, 0, 0);
+
+    if (nowMonday < startMonday) return 0 + manualWeekOffset;
+
+    // Hitung selisih minggu otomatis berdasarkan kalender + offset manual Super Admin
+    const diffTime = nowMonday.getTime() - startMonday.getTime();
+    const calculatedWeeks = Math.floor(diffTime / (1000 * 60 * 60 * 24 * 7));
+    
+    return Math.max(0, calculatedWeeks + manualWeekOffset);
 }
 
 function getJuzForIndex(index) {
@@ -88,71 +109,104 @@ window.switchTab = function(tabId) {
     }
 };
 
-window.initTilawahDashboard = async function(user, namaPanggilan) {
-    cachedAuthUser = user;
-    cachedNamaPanggilan = namaPanggilan || (user && user.email ? user.email.split('@')[0] : "");
+// Variabel penanda apakah user saat ini adalah Super Admin
+let isUserSuperAdmin = false;
+
+// Pastikan di dalam initTilawahDashboard bagian pengecekan user Anda menyertakan ini:
+// isUserSuperAdmin = (currentUserRole === "super_admin" || userEmail === "denzrusmana060f08@gmail.com");
+
+function adjustAdminButtonState() {
+    const adminActionContainer = document.getElementById("adminActionButtons");
+    if (!adminActionContainer) return;
+
+    let btnStart = document.getElementById("btnStartOwoj");
+
+    if (officialStartDate) {
+        // Jika program sudah dimulai, sembunyikan tombol Start Membaca untuk semua admin
+        if (btnStart) btnStart.classList.add("hidden");
+
+        if (isUserSuperAdmin) {
+            // Khusus Super Admin: Munculkan tombol Prev Week dan Next Week
+            adminActionContainer.innerHTML = `
+                <button onclick="triggerBackWeek()" class="bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold text-xs px-3 py-2 rounded-lg transition shadow-md flex items-center gap-1.5" title="Mundur 1 Pekan">
+                    <i class="fa-solid fa-backward-step"></i> Prev Week
+                </button>
+                <button onclick="triggerNextWeek()" class="bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold text-xs px-3 py-2 rounded-lg transition shadow-md flex items-center gap-1.5" title="Maju 1 Pekan">
+                    <i class="fa-solid fa-forward-step"></i> Next Week
+                </button>
+                <button onclick="openManageModal()" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs px-3 py-2 rounded-lg transition shadow-md flex items-center gap-1.5">
+                    <i class="fa-solid fa-user-gear"></i> Kelola Peserta
+                </button>
+            `;
+        }
+    } else {
+        // Jika belum dimulai, tampilkan tombol Start Membaca untuk admin/super admin
+        if (btnStart) btnStart.classList.remove("hidden");
+    }
+}
+
+// Fungsi Super Admin untuk Maju 1 Pekan secara Manual & Permanen di Browser/DB (Tanpa merusak report)
+window.triggerNextWeek = async function() {
+    if (!isUserSuperAdmin) {
+        alert("Akses ditolak. Fitur ini khusus Super Admin.");
+        return;
+    }
+    if (!confirm("Geser rotasi pekan ke depan secara manual? Data laporan mingguan lama Anda akan tetap aman.")) return;
+
+    manualWeekOffset += 1;
 
     try {
         if (window.firebaseDb) {
-            const { collection, getDocs, doc, getDoc } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js");
-            
-            if (user) {
-                const userDoc = await getDoc(doc(window.firebaseDb, "alumni", user.uid));
-                const userEmail = (user.email || "").trim().toLowerCase();
-                const allowedTilawahAdmins = ["denzrusmana060f08@gmail.com"];
-                let isTilawahAdminByEmail = allowedTilawahAdmins.includes(userEmail);
-
-                if (userDoc.exists()) {
-                    const userData = userDoc.data();
-                    currentUserRole = userData.role || "member";
-
-                    const namaPanggilanUpper = (userData.namaPanggilan || "").trim().toUpperCase();
-                    const namaLengkapUpper = (userData.namaLengkap || "").trim().toUpperCase();
-
-                    const isMainAdmin = (currentUserRole === "admin" || currentUserRole === "super_admin");
-                    const isTilawahAdminByName = namaPanggilanUpper.includes("NANA OCIN") || 
-                                                 namaLengkapUpper.includes("NANA OCIN") ||
-                                                 userData.tilawahRole === "admin";
-
-                    if (isMainAdmin || isTilawahAdminByName || isTilawahAdminByEmail) {
-                        const adminBtns = document.getElementById("adminActionButtons");
-                        if (adminBtns) adminBtns.classList.remove("hidden");
-                    }
-                } else if (isTilawahAdminByEmail) {
-                    const adminBtns = document.getElementById("adminActionButtons");
-                    if (adminBtns) adminBtns.classList.remove("hidden");
-                }
-            }
-
-            const configDoc = await getDoc(doc(window.firebaseDb, "settings", "tilawah_config"));
-            if (configDoc.exists()) {
-                officialStartDate = configDoc.data().startDate || null;
-            }
-
-            const alumniSnap = await getDocs(collection(window.firebaseDb, "alumni"));
-            allDbAlumni = [];
-            alumniSnap.forEach(d => allDbAlumni.push({ id: d.id, ...d.data() }));
-
-            const tilawahDoc = await getDoc(doc(window.firebaseDb, "settings", "tilawah_participants"));
-            if (tilawahDoc.exists() && tilawahDoc.data().participants) {
-                assignedParticipants = tilawahDoc.data().participants;
-            }
+            const { doc, setDoc } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js");
+            await setDoc(doc(window.firebaseDb, "settings", "tilawah_config"), {
+                startDate: officialStartDate,
+                manualOffset: manualWeekOffset, // Simpan offset manual ke database
+                updatedAt: new Date().toISOString()
+            }, { merge: true });
         }
+        alert("Berhasil digeser maju 1 Pekan!");
     } catch (err) {
-        console.error("Gagal memuat data tilawah:", err);
+        console.error("Gagal menyimpan offset manual:", err);
     }
 
     updateBadgeStatus();
     renderTab1Participants();
-    renderTilawahTabs();
-    renderActiveJuzCards(user);
-    
-    const currentWeek = getElapsedWeeks() + 1;
-    await loadExistingReports(currentWeek);
-
-    renderColorWheel();
+    renderActiveJuzCards(cachedAuthUser);
     updateYearlyStats();
+    renderColorWheel();
 };
+
+// Fungsi Super Admin untuk Mundur 1 Pekan secara Manual & Permanen
+window.triggerBackWeek = async function() {
+    if (!isUserSuperAdmin) {
+        alert("Akses ditolak. Fitur ini khusus Super Admin.");
+        return;
+    }
+    if (!confirm("Kembalikan rotasi pekan ke sebelumnya secara manual?")) return;
+
+    manualWeekOffset -= 1;
+
+    try {
+        if (window.firebaseDb) {
+            const { doc, setDoc } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js");
+            await setDoc(doc(window.firebaseDb, "settings", "tilawah_config"), {
+                startDate: officialStartDate,
+                manualOffset: manualWeekOffset, // Simpan offset manual ke database
+                updatedAt: new Date().toISOString()
+            }, { merge: true });
+        }
+        alert("Berhasil dikembalikan mundur 1 Pekan!");
+    } catch (err) {
+        console.error("Gagal menyimpan offset manual:", err);
+    }
+
+    updateBadgeStatus();
+    renderTab1Participants();
+    renderActiveJuzCards(cachedAuthUser);
+    updateYearlyStats();
+    renderColorWheel();
+};
+
 
 function updateBadgeStatus() {
     const badge = document.getElementById("currentWeekBadge");
@@ -1196,3 +1250,84 @@ async function executeUnreportSurah(juzNumber, suratName, element) {
         console.error("Gagal menghapus report dari Firebase:", err);
     }
 }
+
+window.initTilawahDashboard = async function(user, namaPanggilan) {
+    cachedAuthUser = user;
+    cachedNamaPanggilan = namaPanggilan || (user && user.email ? user.email.split('@')[0] : "");
+
+    try {
+        if (window.firebaseDb) {
+            const { collection, getDocs, doc, getDoc } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js");
+            
+            if (user) {
+                const userDoc = await getDoc(doc(window.firebaseDb, "alumni", user.uid));
+                const userEmail = (user.email || "").trim().toLowerCase();
+                const allowedTilawahAdmins = ["denzrusmana060f08@gmail.com"];
+                let isTilawahAdminByEmail = allowedTilawahAdmins.includes(userEmail);
+
+                if (userDoc.exists()) {
+                    const userData = userDoc.data();
+                    currentUserRole = userData.role || "member";
+                    isUserSuperAdmin = (currentUserRole === "super_admin" || userEmail === "denzrusmana060f08@gmail.com");
+
+                    const namaPanggilanUpper = (userData.namaPanggilan || "").trim().toUpperCase();
+                    const namaLengkapUpper = (userData.namaLengkap || "").trim().toUpperCase();
+
+                    const isMainAdmin = (currentUserRole === "admin" || currentUserRole === "super_admin");
+                    const isTilawahAdminByName = namaPanggilanUpper.includes("NANA OCIN") || 
+                                                 namaLengkapUpper.includes("NANA OCIN") ||
+                                                 userData.tilawahRole === "admin";
+
+                    if (isMainAdmin || isTilawahAdminByName || isTilawahAdminByEmail) {
+                        const adminBtns = document.getElementById("adminActionButtons");
+                        if (adminBtns) {
+                            adminBtns.classList.remove("hidden");
+                            adjustAdminButtonState();
+                        }
+                    }
+                } else if (isTilawahAdminByEmail) {
+                    const adminBtns = document.getElementById("adminActionButtons");
+                    if (adminBtns) {
+                        adminBtns.classList.remove("hidden");
+                        isUserSuperAdmin = true;
+                        adjustAdminButtonState();
+                    }
+                }
+            }
+
+            // 1. Ambil Config Tanggal Mulai OWOJ & Offset Manual
+            const configDoc = await getDoc(doc(window.firebaseDb, "settings", "tilawah_config"));
+            if (configDoc.exists()) {
+                const configData = configDoc.data();
+                officialStartDate = configData.startDate || null;
+                manualWeekOffset = configData.manualOffset || 0; // Muat offset manual yang tersimpan
+                adjustAdminButtonState();
+            }
+
+            // 2. Ambil Data Daftar Alumni dari Koleksi "alumni"
+            const alumniSnap = await getDocs(collection(window.firebaseDb, "alumni"));
+            allDbAlumni = [];
+            alumniSnap.forEach(d => allDbAlumni.push({ id: d.id, ...d.data() }));
+
+            // 3. Ambil Data Peserta Tilawah dari Koleksi "settings/tilawah_participants"
+            const tilawahDoc = await getDoc(doc(window.firebaseDb, "settings", "tilawah_participants"));
+            if (tilawahDoc.exists() && tilawahDoc.data().participants) {
+                assignedParticipants = tilawahDoc.data().participants;
+            }
+        }
+    } catch (err) {
+        console.error("Gagal memuat data tilawah:", err);
+    }
+
+    // Jalankan seluruh perender komponen setelah data berhasil ditarik
+    updateBadgeStatus();
+    renderTab1Participants();
+    renderTilawahTabs();
+    renderActiveJuzCards(user);
+    
+    const currentWeek = getElapsedWeeks() + 1;
+    await loadExistingReports(currentWeek);
+
+    renderColorWheel();
+    updateYearlyStats();
+};
