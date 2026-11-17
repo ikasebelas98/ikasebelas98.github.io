@@ -222,10 +222,23 @@
 
             <!-- TAB 3: PROGRES MINGGUAN -->
 <div id="tab3" class="tab-content hidden">
-    <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 text-center space-y-8">
+    <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 space-y-8">
         <!-- Tempat info hover atau wadah dinamis -->
-        <div id="wheelHoverInfo" class="bg-slate-800/90 border border-amber-500/30 rounded-xl p-3 text-xs text-slate-300 max-w-sm mx-auto">
+        <div id="wheelHoverInfo" class="bg-slate-800/90 border border-amber-500/30 rounded-xl p-3 text-xs text-slate-300 max-w-sm mx-auto text-center">
             Arahkan kursor atau sentuh kelopak Juz pada roda warna di atas untuk melihat detail progres.
+        </div>
+
+        <!-- TAMBAHAN: LEADERBOARD MINGGUAN (CEPAT SELESAI PEKAN INI) -->
+        <div class="max-w-xl mx-auto bg-slate-950/60 border border-slate-800 rounded-2xl p-5 space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                <h3 class="text-sm font-bold text-amber-400 flex items-center gap-2">
+                    <i class="fa-solid fa-bolt text-amber-400 text-base"></i> Peserta Tercepat Pekan Ini (Fast Finishers)
+                </h3>
+                <span class="text-[10px] bg-amber-500/10 text-amber-400 px-2.5 py-1 rounded-full font-semibold border border-amber-500/20">Pekan Berjalan</span>
+            </div>
+            <div id="weeklyFastContainer" class="space-y-2">
+                <div class="text-center py-4 text-slate-500 text-xs">Memuat data kecepatan pekan ini...</div>
+            </div>
         </div>
     </div>
 </div>
@@ -305,6 +318,48 @@
             </div>
         </div>
     </div>
+
+<!-- SECTION TAMBAHAN: REKAPITULASI LAPORAN BULANAN -->
+        <div class="bg-slate-950/60 border border-slate-800 rounded-2xl p-5 space-y-4 mt-8">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-3 flex-wrap gap-3">
+                <h3 class="text-sm font-bold text-amber-400 flex items-center gap-2">
+                    <i class="fa-solid fa-calendar-days text-amber-400 text-base"></i> Rekapitulasi Matriks Bulanan Peserta
+                </h3>
+                <div class="flex items-center gap-2">
+                    <label class="text-xs text-slate-400 font-semibold">Pilih Bulan:</label>
+                    <select id="filterMonthSelect" onchange="renderMonthlyRecapTable()" class="bg-slate-900 border border-slate-700 text-amber-400 text-xs font-bold rounded-lg px-3 py-1.5 focus:border-amber-400 outline-none cursor-pointer">
+                        <option value="10">Oktober</option>
+                        <option value="11" selected>November</option>
+                        <option value="12">Desember</option>
+                        <!-- Tambahkan bulan lainnya jika perlu -->
+                    </select>
+                </div>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs text-slate-300">
+
+                    <thead class="text-slate-400 border-b border-slate-800 uppercase font-bold text-[10px] bg-slate-900/50">
+    <tr>
+        <th class="p-3">No</th>
+        <th class="p-3">Nama Peserta</th>
+        <th class="p-3 text-center">Minggu ke-1</th>
+        <th class="p-3 text-center">Minggu ke-2</th>
+        <th class="p-3 text-center">Minggu ke-3</th>
+        <th class="p-3 text-center">Minggu ke-4</th>
+        <th class="p-3 text-center rounded-r-lg">Minggu ke-5</th>
+    </tr>
+</thead>
+                    
+                    <tbody id="monthlyRecapTableBody" class="divide-y divide-slate-800/40">
+                        <tr>
+                            <td colspan="7" class="py-6 text-center text-slate-500">Memuat matriks bulanan...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
 </div>
     </main>
 

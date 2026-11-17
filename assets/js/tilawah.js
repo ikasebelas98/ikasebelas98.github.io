@@ -1330,4 +1330,162 @@ window.initTilawahDashboard = async function(user, namaPanggilan) {
 
     renderColorWheel();
     updateYearlyStats();
+    // Tambahkan di dalam initTilawahDashboard():
+    renderMonthlyRecapTable();
+    updateWeeklyFastFinishers();
+};
+
+// ==========================================
+// RENDER LEADERBOARD MINGGUAN (CEPAT SELESAI PEKAN INI)
+// ==========================================
+async function updateWeeklyFastFinishers() {
+    // Anda bisa menempatkan elemen penampung khusus di tab progres/laporan mingguan jika ingin menampilkannya
+    const currentWeek = getElapsedWeeks() + 1;
+    if (!window.firebaseDb) return;
+
+    try {
+        const { collection, getDocs, query, where } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js");
+        const q = query(collection(window.firebaseDb, "tilawah_reports"), where("pekan", "==", currentWeek));
+        const snap = await getDocs(q);
+
+        const userFirstReportTime = {};
+        snap.forEach(docSnap => {
+            const data = docSnap.data();
+            const userName = (data.nama || "Alumni").toUpperCase();
+            const reportTime = new Date(data.timestamp || Date.now()).getTime();
+
+            // Catat waktu tercepat peserta menyelesaikan surat pertamanya di pekan ini
+            if (!userFirstReportTime[userName] || reportTime < userFirstReportTime[userName]) {
+                userFirstReportTime[userName] = reportTime;
+            }
+        });
+
+        // Urutkan siapa yang paling awal melapor di pekan ini
+        const sortedFast = Object.entries(userFirstReportTime)
+            .sort((a, b) => a[1] - b[1])
+            .slice(0, 5);
+
+        // Jika Anda ingin menampilkannya di elemen tertentu, buat div-nya, misal id="weeklyFastContainer"
+        const container = document.getElementById("weeklyFastContainer");
+        if (container) {
+            if (sortedFast.length === 0) {
+                container.innerHTML = `<div class="text-center py-4 text-slate-500 text-xs">Belum ada laporan di Pekan ke-${currentWeek} ini.</div>`;
+            } else {
+                container.innerHTML = sortedFast.map(([name], idx) => `
+                    <div class="flex items-center justify-between bg-slate-900/80 border border-slate-800 p-2.5 rounded-xl mb-2">
+                        <div class="flex items-center gap-2.5">
+                            <span class="font-bold text-amber-400 text-xs">#${idx + 1}</span>
+                            <span class="text-xs font-bold text-slate-200">${name}</span>
+                        </div>
+                        <span class="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-lg border border-emerald-500/20">Selesai Pekan Ini</span>
+                    </div>
+                `).join('');
+            }
+        }
+    } catch (err) {
+        console.error("Gagal memuat early/fast finishers mingguan:", err);
+    }
+}
+
+// ==========================================
+// RENDER TABEL MATRIKS REKAPITULASI BULANAN (BERBASIS MINGGU KALENDER MASEHI)
+// ==========================================
+window.renderMonthlyRecapTable = async function() {
+    const tbody = document.getElementById("monthlyRecapTableBody");
+    if (!tbody) return;
+
+    const monthSelect = document.getElementById("filterMonthSelect");
+    const selectedMonth = monthSelect ? parseInt(monthSelect.value, 10) : new Date().getMonth() + 1;
+    const currentYear = new Date().getFullYear();
+
+    const validParticipants = assignedParticipants.filter(p => p && p.id && p.id !== "empty_slot");
+    if (validParticipants.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" class="py-6 text-center text-slate-500">Belum ada peserta terdaftar.</td></tr>`;
+        return;
+    }
+
+    if (!window.firebaseDb) return;
+
+    try {
+        const { collection, getDocs } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js");
+        const snap = await getDocs(collection(window.firebaseDb, "tilawah_reports"));
+
+        // Fungsi bantu untuk menentukan minggu ke- berapa berdasarkan tanggal riil laporan
+        function getCalendarWeekOfMonth(date) {
+            const day = date.getDate();
+            let weekNum = Math.ceil(day / 7);
+            return weekNum > 5 ? 5 : weekNum;
+        }
+
+        // recapData[namaUppercase][calendarWeekNum] = { juz, suratSet }
+        const recapData = {};
+
+        snap.forEach(docSnap => {
+            const data = docSnap.data();
+            if (data.timestamp) {
+                const reportDate = new Date(data.timestamp);
+                const reportMonth = reportDate.getMonth() + 1;
+                const reportYear = reportDate.getFullYear();
+
+                // Saring laporan sesuai bulan dan tahun yang aktif di dropdown
+                if (reportMonth === selectedMonth && reportYear === currentYear) {
+                    const name = (data.nama || "").toUpperCase();
+                    const calendarWeek = getCalendarWeekOfMonth(reportDate); 
+
+                    const juzNum = data.juz;
+                    const suratName = data.surat;
+
+                    if (!recapData[name]) recapData[name] = {};
+                    if (!recapData[name][calendarWeek]) {
+                        recapData[name][calendarWeek] = { juz: juzNum, suratSet: new Set() };
+                    }
+                    recapData[name][calendarWeek].suratSet.add(suratName);
+                }
+            }
+        });
+
+        tbody.innerHTML = validParticipants.map((p, idx) => {
+            const namaPanggilan = (p.namaPanggilan || "Alumni").toUpperCase();
+            const userCalendarReports = recapData[namaPanggilan] || {};
+
+            let weeksHtml = '';
+            // Perulangan untuk Minggu 1 sampai 5 berdasarkan kalender riil bulan tersebut
+            for (let w = 1; w <= 5; w++) {
+                const weekData = userCalendarReports[w];
+                let badgeContent = `<span class="text-slate-600">-</span>`;
+
+                if (weekData && weekData.suratSet.size > 0) {
+                    const juzNum = weekData.juz;
+                    const totalSurahInJuz = QURAN_JUZ_DATA[juzNum] ? QURAN_JUZ_DATA[juzNum].length : 2;
+                    const completedCount = weekData.suratSet.size;
+                    const percent = Math.min(100, Math.round((completedCount / totalSurahInJuz) * 100));
+
+                    const badgeColor = percent >= 100 
+                        ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' 
+                        : 'bg-amber-500/20 text-amber-400 border-amber-500/30';
+
+                    badgeContent = `
+                        <div class="inline-block px-2.5 py-1.5 rounded-lg text-[11px] font-bold border ${badgeColor} text-center leading-tight shadow-sm">
+                            <div class="text-amber-300">Juz ${juzNum}</div>
+                            <div class="text-[9px] opacity-90 mt-0.5">${completedCount} dari ${totalSurahInJuz} surat (${percent}%)</div>
+                        </div>
+                    `;
+                }
+
+                weeksHtml += `<td class="p-3 text-center align-middle">${badgeContent}</td>`;
+            }
+
+            return `
+                <tr class="hover:bg-slate-900/50 transition">
+                    <td class="p-3 font-bold text-slate-400 align-middle">${idx + 1}</td>
+                    <td class="p-3 font-semibold text-amber-400 align-middle">${namaPanggilan}</td>
+                    ${weeksHtml}
+                </tr>
+            `;
+        }).join('');
+
+    } catch (err) {
+        console.error("Gagal merender rekapitulasi bulanan:", err);
+        tbody.innerHTML = `<tr><td colspan="7" class="py-6 text-center text-rose-400">Gagal memuat data matriks bulanan.</td></tr>`;
+    }
 };
