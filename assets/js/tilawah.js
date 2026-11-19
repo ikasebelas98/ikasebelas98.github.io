@@ -709,7 +709,7 @@ async function showWhatsappModal(juzNumber, suratName, dateStr, timeStr) {
     generatedReportImageUrl = await generateReportImage(juzNumber, suratName, dateStr, timeStr, userName, websiteLink);
 
     const message = "✨ LAPORAN TILAWAH OWOJ ✨\n" +
-                    "Ika SMAN 11 Bandung Angkatan '98\n\n" +
+                    "IKA SMAN 11 Bandung Angkatan '98\n\n" +
                     "Alhamdulillah, saya *" + userName + "* telah menyelesaikan:\n" +
                     "📖 *Juz " + juzNumber + "* (" + suratName + ")\n" +
                     "📅 Tanggal: " + dateStr + " pukul " + timeStr + "\n\n" +
@@ -728,20 +728,123 @@ async function showWhatsappModal(juzNumber, suratName, dateStr, timeStr) {
     }
 }
 
-window.handleSendWhatsAppAndClose = function() {
-    if (generatedReportImageUrl) {
+async function getPngBlobFromSource(imageSource) {
+    // Jika canvas laporan tersedia dan sudah digambar, manfaatkan langsung ke PNG
+    const reportCanvas = document.getElementById("reportCanvas");
+    if (reportCanvas && typeof reportCanvas.toBlob === "function") {
+        const canvasBlob = await new Promise((resolve) => {
+            try {
+                reportCanvas.toBlob((blob) => resolve(blob || null), "image/png");
+            } catch (_) {
+                resolve(null);
+            }
+        });
+        if (canvasBlob) {
+            return canvasBlob;
+        }
+    }
+
+    if (!imageSource) return null;
+
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+
+        img.onload = () => {
+            try {
+                const canvas = document.createElement("canvas");
+                canvas.width = img.naturalWidth || img.width || 1080;
+                canvas.height = img.naturalHeight || img.height || 1920;
+
+                const ctx = canvas.getContext("2d");
+                if (!ctx) {
+                    resolve(null);
+                    return;
+                }
+
+                ctx.drawImage(img, 0, 0);
+                canvas.toBlob((blob) => resolve(blob || null), "image/png");
+            } catch (_) {
+                resolve(null);
+            }
+        };
+
+        img.onerror = () => resolve(null);
+        img.src = imageSource;
+    });
+}
+
+async function copyReportBannerToClipboard(imageSource) {
+    if (!navigator.clipboard || typeof navigator.clipboard.write !== "function" || typeof window.ClipboardItem === "undefined") {
+        console.warn("Browser tidak mendukung navigator.clipboard.write atau ClipboardItem.");
+        return false;
+    }
+
+    try {
+        const pngBlob = await getPngBlobFromSource(imageSource);
+        if (!pngBlob) {
+            console.warn("Gagal menyiapkan blob PNG untuk clipboard.");
+            return false;
+        }
+
+        await navigator.clipboard.write([
+            new ClipboardItem({
+                "image/png": pngBlob
+            })
+        ]);
+
+        console.log("Banner berhasil disalin ke clipboard (image/png).");
+        return true;
+    } catch (err) {
+        console.warn("Gagal menyalin gambar ke clipboard:", err);
+        return false;
+    }
+}
+
+function downloadReportBanner(imageSource) {
+    if (!imageSource) return;
+
+    try {
         const downloadLink = document.createElement("a");
-        downloadLink.href = generatedReportImageUrl;
-        downloadLink.download = `Laporan_Juz_${activeJuzTarget ? activeJuzTarget.juzNumber : 'OWOJ'}_${cachedNamaPanggilan.toUpperCase()}.webp`;
+        downloadLink.href = imageSource;
+        downloadLink.download = `Laporan_Juz_${activeJuzTarget ? activeJuzTarget.juzNumber : 'OWOJ'}_${(cachedNamaPanggilan || 'ALUMNI').toUpperCase()}.webp`;
         document.body.appendChild(downloadLink);
         downloadLink.click();
         document.body.removeChild(downloadLink);
+    } catch (err) {
+        console.warn("Download otomatis banner gagal:", err);
+    }
+}
+
+window.handleSendWhatsAppAndClose = async function(event) {
+    if (event) {
+        event.preventDefault();
     }
 
+    const sendWaBtn = document.getElementById("sendWaBtn");
+    const waUrl = sendWaBtn ? sendWaBtn.getAttribute("href") : "";
+
+    if (generatedReportImageUrl) {
+        // 1. Coba salin gambar ke clipboard terlebih dahulu
+        await copyReportBannerToClipboard(generatedReportImageUrl);
+
+        // 2. Tetap unduh gambar sebagai cadangan
+        downloadReportBanner(generatedReportImageUrl);
+    }
+
+    // 3. Tutup modal laporan
     const waModal = document.getElementById("whatsappModal");
     if (waModal) {
         waModal.classList.remove("flex");
         waModal.classList.add("hidden");
+    }
+
+    // 4. Buka WhatsApp dengan pesan teks tetap diprioritaskan
+    if (waUrl && waUrl !== "#") {
+        const openedWin = window.open(waUrl, "_blank", "noopener,noreferrer");
+        if (!openedWin) {
+            window.location.href = waUrl;
+        }
     }
 };
 
