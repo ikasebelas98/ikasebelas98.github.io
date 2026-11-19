@@ -305,13 +305,12 @@ window.updateMegaMenuState = function(user, userInfo) {
             : "assets/images/tumb 06 login.webp";
 
         const titleHtml = `<span style="color: #1f2433; font-weight: 700; display: block; font-size: 20px; line-height: 1.1; margin-bottom: 0px;">${namaLengkap}</span>`;
-        const profileSubtext = `${namaPanggilan} (${email}) - [${userRole.toUpperCase()}]`;
 
         let userLinks = [
             { 
-                text: profileSubtext, 
+                text: email, 
                 href: "javascript:void(0);", 
-                style: "color: #1f2433; font-size: 12px; font-weight: 600; cursor: default; margin-top: -8px; margin-bottom: 24px; display: block; opacity: 0.85;" 
+                style: "color: #1f2433; font-size: 12px; font-weight: 600; cursor: default; margin-top: -8px; margin-bottom: 24px; display: block; opacity: 0.85; word-break: break-all;" 
             },
             { text: "Update Profile & ID Card", href: "auth.html?mode=edit" }
         ];
