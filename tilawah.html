@@ -102,7 +102,7 @@
         <div class="flex justify-between items-center mb-6 flex-wrap gap-4">
             <div>
                 <h2 class="text-xl font-bold text-amber-400">Daftar 30 Peserta OWOJ</h2>
-                <p class="text-xs text-slate-400">Rotasi urutan Juz otomatis bergeser setiap hari Senin pukul 00:00 WIB.</p>
+                <p class="text-xs text-slate-400">Rotasi urutan Juz otomatis bergeser setiap hari Senin pukul 00:00 WIB • Periode ke-1 • Pekan ke-24 • Minggu ke-4 bulan Nopember 2026.</p>
             </div>
             <div class="flex items-center gap-3 flex-wrap">
                 <div class="text-xs bg-slate-800 text-amber-300 font-semibold px-3 py-2 rounded-lg border border-amber-500/20" id="currentWeekBadge">
@@ -110,9 +110,6 @@
                 </div>
                 <!-- Tombol Khusus Admin -->
                 <div id="adminActionButtons" class="hidden flex items-center gap-2">
-                    <button id="btnStartOwoj" onclick="triggerStartOwoj()" class="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs px-4 py-2 rounded-lg transition shadow-md flex items-center gap-2">
-                        <i class="fa-solid fa-play"></i> Start Membaca
-                    </button>
                     <button id="btnManageParticipants" onclick="openManageModal()" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs px-4 py-2 rounded-lg transition shadow-md flex items-center gap-2">
                         <i class="fa-solid fa-user-plus"></i> Kelola Peserta
                     </button>
@@ -329,9 +326,8 @@
                     <label class="text-xs text-slate-400 font-semibold">Pilih Bulan:</label>
                     <select id="filterMonthSelect" onchange="renderMonthlyRecapTable()" class="bg-slate-900 border border-slate-700 text-amber-400 text-xs font-bold rounded-lg px-3 py-1.5 focus:border-amber-400 outline-none cursor-pointer">
                         <option value="10">Oktober</option>
-                        <option value="11" selected>November</option>
+                        <option value="11" selected>Nopember</option>
                         <option value="12">Desember</option>
-                        <!-- Tambahkan bulan lainnya jika perlu -->
                     </select>
                 </div>
             </div>
@@ -481,10 +477,10 @@
         });
     </script>
 
-    <!-- JS ASSETS -->
+   <!-- JS ASSETS -->
 <script src="assets/js/navbar.js?v=2.0"></script>
 <script type="module" src="assets/js/counter.js"></script> <!-- Perhatikan baris ini -->
-<script src="assets/js/tilawah.js"></script>
+<script src="assets/js/tilawah.js?v=3.1"></script>
 
 </body>
 </html>

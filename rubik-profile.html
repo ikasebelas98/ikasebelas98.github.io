@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profil Usaha & Portofolio - Rubik IKA 11.98</title>
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Font Inter, Montserrat, & FontAwesome -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Montserrat:wght@600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+
+    <!-- Stylesheet Utama Website -->
+    <link rel="stylesheet" href="assets/css/style.css">
+    <link rel="stylesheet" href="assets/css/counter.css">
+
+    <style>
+        body {
+            background-color: #0f172a;
+            color: #e2e8f0;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .font-heading {
+            font-family: 'Montserrat', sans-serif;
+        }
+
+        .gallery-item-card {
+            background: rgba(30, 41, 59, 0.72);
+            border: 1.5px solid rgba(148, 163, 184, 0.16);
+            transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+        }
+
+        .gallery-item-card:hover {
+            transform: translateY(-3px);
+            border-color: #eab308;
+            box-shadow: 0 12px 24px -8px rgba(0, 0, 0, 0.65);
+        }
+    </style>
+</head>
+
+<body class="min-h-screen flex flex-col justify-between">
+
+    <!-- ==========================================
+         NAVBAR CONTAINER
+    ========================================== -->
+    <div id="mainNavbarContainer"></div>
+
+    <!-- Mega Menu -->
+    <div class="mega-menu">
+        <div class="mega-menu-container">
+            <img id="mega-icon" src="assets/images/tumb 01 tentang kita.webp" class="mega-icon" alt="Tentang Kita">
+            <div class="mega-content">
+                <h2 id="mega-title" class="mega-title">Satu Perjalanan untuk Maju Bersama</h2>
+                <ul id="mega-links" class="mega-links"></ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==========================================
+         KONTEN UTAMA DETAIL PROFIL RUBIK
+    ========================================== -->
+    <main class="container mx-auto px-4 py-8 flex-grow max-w-7xl">
+
+        <!-- Breadcrumb / Tombol Kembali -->
+        <div class="mb-6 flex items-center justify-between gap-4">
+            <a href="rubik.html" class="inline-flex items-center gap-2 text-xs font-semibold text-slate-300 hover:text-amber-400 bg-slate-800/80 border border-slate-700 px-3.5 py-2 rounded-xl transition">
+                <i class="fa-solid fa-arrow-left"></i>
+                <span>Kembali ke Direktori Rubik</span>
+            </a>
+
+            <span id="profileCategoryBadge" class="hidden text-[11px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-full bg-amber-500/15 border border-amber-500/40 text-amber-400">
+                Kategori Usaha
+            </span>
+        </div>
+
+        <!-- Loading State -->
+        <div id="profileLoading" class="text-center py-20 text-slate-400">
+            <i class="fa-solid fa-spinner fa-spin text-3xl mb-3 text-amber-500"></i>
+            <p>Memuat profil bisnis & portofolio alumni...</p>
+        </div>
+
+        <!-- Error / Not Found State -->
+        <div id="profileNotFound" class="hidden text-center py-20 bg-slate-800/60 border border-slate-700 rounded-2xl max-w-lg mx-auto p-8 space-y-4">
+            <i class="fa-solid fa-store-slash text-4xl text-slate-500"></i>
+            <h2 class="text-xl font-bold text-white font-heading">Profil Usaha Tidak Ditemukan</h2>
+            <p class="text-xs text-slate-400 leading-relaxed">
+                Data ruang bisnis alumni tidak tersedia atau tautan tidak valid.
+            </p>
+            <a href="rubik.html" class="inline-flex items-center gap-2 px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-xl transition">
+                <i class="fa-solid fa-grid-2"></i>
+                <span>Lihat Semua Direktori Rubik</span>
+            </a>
+        </div>
+
+        <!-- TWO-COLUMN LAYOUT: KIRI GALERI KOTAK SERAGAM | KANAN COMPANY PROFILE -->
+        <div id="profileContentWrapper" class="hidden grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+
+            <!-- ==========================================
+                 SISI KIRI: KOTAK GALERI PRODUK / PORTOFOLIO SERAGAM
+            ========================================== -->
+            <section class="lg:col-span-7 space-y-4">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-2.5">
+                    <h2 class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
+                        <i class="fa-solid fa-images text-amber-400"></i>
+                        <span>Etalase Produk, Jasa & Portofolio</span>
+                    </h2>
+                    <span id="galleryTotalBadge" class="text-[11px] text-slate-400">0 Item</span>
+                </div>
+
+                <!-- Grid 2 Kolom Kotak Seragam -->
+                <div id="rubikGalleryGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-5"></div>
+            </section>
+
+            <!-- ==========================================
+                 SISI KANAN: STICKY COMPANY PROFILE PANEL
+            ========================================== -->
+            <aside class="lg:col-span-5 lg:sticky lg:top-24 bg-slate-800/80 border border-slate-700/80 rounded-2xl p-6 shadow-2xl space-y-5">
+
+                <!-- Header Identitas Pemilik: Nama Panggilan (Besar) & Nama Lengkap (Jauh Lebih Kecil) -->
+                <div class="flex items-start justify-between gap-4 border-b border-slate-700/80 pb-4">
+                    <div class="space-y-1 min-w-0">
+                        <span class="text-[10px] font-bold uppercase tracking-widest text-amber-400 block">PROFILE ALUMNI 11.98</span>
+                        <h1 id="profNamaPanggilan" class="text-2xl sm:text-3xl font-black font-heading text-white uppercase tracking-tight leading-tight break-words">
+                            NAMA PANGGILAN
+                        </h1>
+                        <p id="profNamaLengkap" class="text-[11px] font-medium text-slate-400 tracking-wide">
+                            Nama Lengkap Alumni
+                        </p>
+                    </div>
+
+                    <!-- Pas Foto Pemilik -->
+                    <img id="profOwnerPhoto" src="assets/images/tumb 06 login.webp" alt="Foto Pemilik"
+                         class="w-16 h-16 rounded-2xl object-cover object-[center_15%] border border-amber-500/40 shrink-0 bg-slate-900">
+                </div>
+
+                <!-- Logo Perusahaan & Nama Perusahaan / Tempat Usaha -->
+                <div class="flex items-center gap-3.5 bg-slate-900/85 border border-slate-700/70 rounded-xl p-3.5">
+                    <div class="w-14 h-14 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-center overflow-hidden shrink-0 p-1">
+                        <img id="profCompanyLogo" src="assets/images/logoikagrey.png" alt="Logo Perusahaan" class="w-full h-full object-contain">
+                    </div>
+                    <div class="min-w-0">
+                        <span class="text-[10px] uppercase tracking-wider text-slate-400 block">Perusahaan / Tempat Usaha</span>
+                        <h2 id="profCompanyName" class="text-base font-bold text-white leading-snug break-words">
+                            Nama Usaha
+                        </h2>
+                        <span id="profKelasBadge" class="text-[11px] text-amber-400 font-medium">Angkatan '98</span>
+                    </div>
+                </div>
+
+                <!-- Tombol Aksi Utama: Direct WhatsApp CP Bisnis (Terbuka untuk Umum) -->
+                <div class="space-y-2.5">
+                    <a id="btnWhatsappCp" href="#" target="_blank" rel="noopener noreferrer"
+                       class="w-full py-3.5 px-4 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow-lg flex items-center justify-center gap-2 transition transform hover:scale-[1.01]">
+                        <i class="fa-brands fa-whatsapp text-lg"></i>
+                        <span id="btnWhatsappCpLabel">Hubungi Contact Person via WhatsApp</span>
+                    </a>
+
+                    <a id="btnBackToBiodata" href="database-alumni.html"
+                       class="w-full py-2.5 px-4 bg-slate-900/90 hover:bg-slate-700 text-amber-400 border border-amber-500/30 font-semibold text-xs rounded-xl flex items-center justify-center gap-2 transition">
+                        <i class="fa-solid fa-id-card"></i>
+                        <span>Lihat Biodata Alumni di Direktori</span>
+                    </a>
+                </div>
+
+                <!-- Space Luas Narasi Company Profile -->
+                <div class="space-y-2 pt-2 border-t border-slate-700/80">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+                        <i class="fa-solid fa-building-user"></i>
+                        <span>Tentang Usaha, Jasa & Keahlian</span>
+                    </h3>
+                    <div id="profNarasiUsaha" class="text-xs sm:text-[13px] text-slate-300 leading-relaxed whitespace-pre-line bg-slate-950/60 border border-slate-800/90 rounded-xl p-4 min-h-[140px]">
+                        Belum ada deskripsi profil usaha.
+                    </div>
+                </div>
+
+                <!-- Alamat Tempat Usaha, Email & Sosmed -->
+                <div class="space-y-2.5 pt-2 border-t border-slate-700/80 text-xs">
+                    <div class="flex items-start gap-2.5">
+                        <i class="fa-solid fa-location-dot text-amber-400 mt-0.5 w-4 text-center shrink-0"></i>
+                        <div>
+                            <span class="text-[10px] uppercase tracking-wider text-slate-400 block">Alamat Tempat Usaha</span>
+                            <span id="profAlamatUsaha" class="text-slate-200 font-medium leading-snug">-</span>
+                        </div>
+                    </div>
+
+                    <div class="flex items-start gap-2.5">
+                        <i class="fa-solid fa-envelope-open-text text-amber-400 mt-0.5 w-4 text-center shrink-0"></i>
+                        <div>
+                            <span class="text-[10px] uppercase tracking-wider text-slate-400 block">Email & Media Sosial Usaha</span>
+                            <span id="profKontakSosmed" class="text-slate-200 font-medium break-all">-</span>
+                        </div>
+                    </div>
+
+                    <div class="flex items-start gap-2.5">
+                        <i class="fa-solid fa-phone-volume text-emerald-400 mt-0.5 w-4 text-center shrink-0"></i>
+                        <div>
+                            <span class="text-[10px] uppercase tracking-wider text-slate-400 block">Nomor CP Bisnis (Publik)</span>
+                            <span id="profWaNumberText" class="text-emerald-400 font-bold">-</span>
+                        </div>
+                    </div>
+                </div>
+
+            </aside>
+        </div>
+    </main>
+
+    <!-- ==========================================
+         LIGHTBOX MODAL PERBESAR GAMBAR GALERI
+    ========================================== -->
+    <div id="galleryLightbox" onclick="closeGalleryLightbox()" class="fixed inset-0 z-[99999] hidden items-center justify-center p-4 bg-black/85 backdrop-blur-sm">
+        <div onclick="event.stopPropagation()" class="relative max-w-2xl w-full bg-slate-900 border border-slate-700 rounded-2xl overflow-hidden shadow-2xl">
+            <button type="button" onclick="closeGalleryLightbox()" class="absolute top-3 right-3 w-9 h-9 rounded-full bg-black/75 hover:bg-amber-500 hover:text-slate-950 text-white flex items-center justify-center transition z-10">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+            <img id="lightboxImg" src="" alt="Preview Item" class="w-full max-h-[75vh] object-contain bg-slate-950">
+            <div class="p-4 border-t border-slate-800">
+                <p id="lightboxCaption" class="text-xs sm:text-sm text-slate-200 leading-relaxed"></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==========================================
+         FOOTER VISITOR COUNTER
+    ========================================== -->
+    <div class="counter-wrapper">
+        <div class="visitor-counter">
+            <div class="counter-time-group">
+                <span id="liveDayDate" class="counter-date">MEMUAT TANGGAL...</span>
+                <span class="counter-divider">|</span>
+                <span id="liveClock" class="counter-clock">00:00:00 WIB</span>
+            </div>
+            <span class="counter-divider-vertical"></span>
+            <div class="counter-stats-group">
+                <span class="counter-label">visitor:</span>
+                <span id="visitorCount" class="counter-number">000000</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==========================================
+         FIREBASE & PROFILE LOADER ENGINE
+    ========================================== -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyBSuusyB8UmVN721It89xqgfxZf8swB6gk",
+            authDomain: "ikasebelas98-96595.firebaseapp.com",
+            projectId: "ikasebelas98-96595",
+            storageBucket: "ikasebelas98-96595.firebasestorage.app",
+            messagingSenderId: "142033224407",
+            appId: "1:142033224407:web:21a6cd2305c75c1deee692",
+            measurementId: "G-W486XXJVBX"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        window.firebaseSignOut = signOut;
+        window.firebaseAuth = auth;
+
+        window.openGalleryLightbox = function(imgSrc, captionText) {
+            const modal = document.getElementById("galleryLightbox");
+            const img = document.getElementById("lightboxImg");
+            const cap = document.getElementById("lightboxCaption");
+            if (!modal || !img || !cap) return;
+
+            img.src = imgSrc;
+            cap.textContent = captionText || "";
+            modal.classList.remove("hidden");
+            modal.classList.add("flex");
+        };
+
+        window.closeGalleryLightbox = function() {
+            const modal = document.getElementById("galleryLightbox");
+            if (!modal) return;
+            modal.classList.remove("flex");
+            modal.classList.add("hidden");
+        };
+
+        onAuthStateChanged(auth, async (user) => {
+            const loginBtn = document.querySelector('#login') || document.querySelector('a[href*="javascript:void"]');
+            const targetElement = loginBtn ? (loginBtn.tagName === 'A' ? loginBtn : (loginBtn.querySelector('a') || loginBtn)) : null;
+
+            if (user) {
+                try {
+                    const userDoc = await getDoc(doc(db, "alumni", user.uid));
+                    let namaLengkap = user.displayName || "ALUMNI SMAN 11";
+                    let namaPanggilan = user.email ? user.email.split('@')[0].toUpperCase() : "ALUMNI";
+                    let fotoProfile = "";
+                    let userRole = "member";
+
+                    if (userDoc.exists()) {
+                        const d = userDoc.data();
+                        namaLengkap = d.namaLengkap || namaLengkap;
+                        namaPanggilan = (d.namaPanggilan || namaPanggilan).toUpperCase();
+                        fotoProfile = d.foto || "";
+                        userRole = d.role || "member";
+                    }
+
+                    if (targetElement) {
+                        targetElement.innerHTML = `<span style="color: #eab308; font-weight: 700;">${namaPanggilan}</span>`;
+                        targetElement.href = "javascript:void(0);";
+                    }
+
+                    if (typeof window.updateMegaMenuState === "function") {
+                        window.updateMegaMenuState(user, {
+                            namaLengkap,
+                            namaPanggilan,
+                            email: user.email || "",
+                            foto: fotoProfile,
+                            role: userRole
+                        });
+                    }
+                    if (typeof window.loadMegaMenu === "function") {
+                        window.loadMegaMenu("login");
+                    }
+                } catch (err) {
+                    console.error("Gagal sinkronisasi navbar:", err);
+                }
+            } else {
+                if (targetElement) {
+                    targetElement.innerHTML = "Sign In";
+                    targetElement.href = "javascript:void(0);";
+                }
+                if (typeof window.updateMegaMenuState === "function") {
+                    window.updateMegaMenuState(null);
+                }
+            }
+        });
+
+        function formatWhatsAppLink(rawPhone, namaPanggilan, namaUsaha) {
+            const cleaned = (rawPhone || "").replace(/[^0-9]/g, "");
+            if (!cleaned) return "";
+            const intl = cleaned.startsWith("0") ? "62" + cleaned.substring(1) : cleaned;
+            const msg = encodeURIComponent(`Halo ${namaPanggilan}, saya melihat profil usaha "${namaUsaha}" di Rubik IKA SMAN 11 Bandung '98 dan ingin bertanya lebih lanjut.`);
+            return `https://wa.me/${intl}?text=${msg}`;
+        }
+
+        function renderRubikProfile(data, targetUid) {
+            const loadingEl = document.getElementById("profileLoading");
+            const wrapperEl = document.getElementById("profileContentWrapper");
+            if (loadingEl) loadingEl.classList.add("hidden");
+            if (wrapperEl) wrapperEl.classList.remove("hidden");
+
+            const namaPanggilan = (data.namaPanggilan || data.namaLengkap || "ALUMNI").toUpperCase();
+            const namaLengkap = data.namaLengkap || "-";
+            const namaUsaha = (data.rubikNamaPerusahaan || data.namaUsaha || `Usaha ${namaPanggilan}`).trim();
+            const kategori = (data.rubikKategoriUsaha || data.jenisUsaha || "Ruang Bisnis Alumni").trim();
+
+            document.title = `${namaPanggilan} - ${namaUsaha} | Rubik IKA 11.98`;
+
+            const catBadge = document.getElementById("profileCategoryBadge");
+            if (catBadge) {
+                catBadge.textContent = kategori;
+                catBadge.classList.remove("hidden");
+            }
+
+            document.getElementById("profNamaPanggilan").textContent = namaPanggilan;
+            document.getElementById("profNamaLengkap").textContent = namaLengkap;
+            document.getElementById("profOwnerPhoto").src = data.foto || "assets/images/tumb 06 login.webp";
+
+            document.getElementById("profCompanyLogo").src = data.rubikLogoUsaha || data.foto || "assets/images/logoikagrey.png";
+            document.getElementById("profCompanyName").textContent = namaUsaha;
+            document.getElementById("profKelasBadge").textContent = data.kelas ? `Alumni ${data.kelas}` : "IKA SMAN 11 Bandung '98";
+
+            // Narasi Company Profile
+            const narasi = (data.rubikNarasiUsaha || "").trim();
+            document.getElementById("profNarasiUsaha").textContent = narasi || `Profil usaha dan portofolio karya dari ${namaPanggilan} (${namaLengkap}). Silakan hubungi Contact Person untuk informasi produk, jasa, maupun kerja sama.`;
+
+            // Alamat, Email & Sosmed
+            document.getElementById("profAlamatUsaha").textContent = (data.rubikAlamatUsaha || data.alamatKota || "-").trim();
+
+            const kontakParts = [
+                data.rubikKontakSosmed,
+                data.email,
+                data.instagram ? (data.instagram.startsWith("@") ? data.instagram : `@${data.instagram}`) : ""
+            ].filter((v, idx, arr) => v && v.trim() && arr.indexOf(v) === idx);
+            document.getElementById("profKontakSosmed").textContent = kontakParts.length > 0 ? kontakParts.join(" • ") : "-";
+
+            // Contact Person WhatsApp Bisnis (Terbuka untuk Umum)
+            const cpPhone = (data.rubikWaBisnis || "").trim();
+            const waBtn = document.getElementById("btnWhatsappCp");
+            const waLabel = document.getElementById("btnWhatsappCpLabel");
+            const waNumberText = document.getElementById("profWaNumberText");
+
+            if (cpPhone) {
+                const waUrl = formatWhatsAppLink(cpPhone, namaPanggilan, namaUsaha);
+                waBtn.href = waUrl;
+                waLabel.textContent = `Chat CP Bisnis (${cpPhone})`;
+                waNumberText.textContent = cpPhone;
+            } else {
+                waBtn.href = "javascript:void(0);";
+                waBtn.classList.remove("from-emerald-500", "to-green-600", "hover:from-emerald-400", "hover:to-green-500");
+                waBtn.classList.add("bg-slate-700", "text-slate-400", "cursor-not-allowed");
+                waLabel.textContent = "Nomor CP Bisnis Belum Dicantumkan";
+                waNumberText.textContent = "Belum dicantumkan";
+            }
+
+            // Link ke Biodata Alumni
+            const bioBtn = document.getElementById("btnBackToBiodata");
+            if (bioBtn) {
+                bioBtn.href = `database-alumni.html?uid=${encodeURIComponent(targetUid)}`;
+            }
+
+            // Render Galeri Kotak Seragam (Maks 6 Foto) + Keterangan di Bawah Gambar
+            const galleryGrid = document.getElementById("rubikGalleryGrid");
+            const totalBadge = document.getElementById("galleryTotalBadge");
+            galleryGrid.innerHTML = "";
+
+            const items = Array.isArray(data.rubikGaleri)
+                ? data.rubikGaleri.slice(0, 6).filter((g) => g && g.image)
+                : [];
+
+            if (items.length === 0 && data.rubikLogoUsaha) {
+                items.push({ image: data.rubikLogoUsaha, caption: namaUsaha });
+            }
+
+            totalBadge.textContent = `${items.length} Item`;
+
+            if (items.length === 0) {
+                galleryGrid.innerHTML = `
+                    <div class="col-span-full bg-slate-800/50 border border-slate-700/70 rounded-2xl p-8 text-center text-xs text-slate-400">
+                        Belum ada foto produk atau portofolio yang diunggah.
+                    </div>
+                `;
+                return;
+            }
+
+            items.forEach((item, idx) => {
+                const captionText = (item.caption || `${namaUsaha} — Item #${idx + 1}`).trim();
+                const isLogoFallback = !Array.isArray(data.rubikGaleri) || data.rubikGaleri.length === 0;
+
+                const card = document.createElement("div");
+                card.className = "gallery-item-card rounded-2xl overflow-hidden flex flex-col cursor-pointer";
+                card.title = "Klik untuk melihat ukuran penuh";
+                card.onclick = () => window.openGalleryLightbox(item.image, captionText);
+
+                const imgBox = document.createElement("div");
+                imgBox.className = "w-full aspect-square bg-slate-950 overflow-hidden";
+
+                const img = document.createElement("img");
+                img.src = item.image;
+                img.alt = captionText;
+                img.className = isLogoFallback
+                    ? "w-full h-full object-contain p-4"
+                    : "w-full h-full object-cover";
+
+                imgBox.appendChild(img);
+
+                const captionBox = document.createElement("div");
+                captionBox.className = "p-3.5 border-t border-slate-800/80 flex-grow";
+
+                const captionP = document.createElement("p");
+                captionP.className = "text-xs text-slate-200 leading-snug line-clamp-2";
+                captionP.textContent = captionText;
+
+                captionBox.appendChild(captionP);
+                card.appendChild(imgBox);
+                card.appendChild(captionBox);
+                galleryGrid.appendChild(card);
+            });
+        }
+
+        async function loadRubikProfilePage() {
+            const params = new URLSearchParams(window.location.search);
+            const targetUid = (params.get("uid") || "").trim();
+
+            const loadingEl = document.getElementById("profileLoading");
+            const notFoundEl = document.getElementById("profileNotFound");
+
+            if (!targetUid) {
+                if (loadingEl) loadingEl.classList.add("hidden");
+                if (notFoundEl) notFoundEl.classList.remove("hidden");
+                return;
+            }
+
+            try {
+                const directSnap = await getDoc(doc(db, "alumni", targetUid));
+                if (directSnap.exists()) {
+                    renderRubikProfile(directSnap.data(), targetUid);
+                    return;
+                }
+
+                const q = query(collection(db, "alumni"), where("uid", "==", targetUid));
+                const qSnap = await getDocs(q);
+                if (!qSnap.empty) {
+                    const foundDoc = qSnap.docs[0];
+                    renderRubikProfile(foundDoc.data(), foundDoc.id);
+                    return;
+                }
+
+                if (loadingEl) loadingEl.classList.add("hidden");
+                if (notFoundEl) notFoundEl.classList.remove("hidden");
+            } catch (err) {
+                console.error("Gagal memuat profil Rubik:", err);
+                if (loadingEl) loadingEl.classList.add("hidden");
+                if (notFoundEl) notFoundEl.classList.remove("hidden");
+            }
+        }
+
+        document.addEventListener("DOMContentLoaded", loadRubikProfilePage);
+    </script>
+
+    <!-- Script Navbar & Counter -->
+    <script src="assets/js/navbar.js?v=2.0"></script>
+    <script type="module" src="assets/js/counter.js"></script>
+</body>
+
+</html>
