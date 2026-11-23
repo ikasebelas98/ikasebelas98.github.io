@@ -51,11 +51,11 @@ const QURAN_JUZ_DATA = {
 // ==========================================
 // KONFIGURASI PERIODE & ROTASI PEKAN (WIB / UTC+7)
 // ==========================================
-const DEFAULT_START_ISO = "2026-11-23T00:00:00+07:00"; // Senin, 23 Nopember 2026, 00:00 WIB[cite: 1]
+const DEFAULT_START_ISO = "2026-11-23T00:00:00+07:00";
 const WIB_OFFSET_MS = 7 * 60 * 60 * 1000;
 const MS_PER_WEEK = 7 * 24 * 60 * 60 * 1000;
 const BASE_PEKAN_PROGRAM = 24;
-const JUZ_ROTATION_SHIFT = 2; // +2 rotasi agar Nomor Urut 1 (NANA OCIN) tetap di JUZ 3[cite: 1]
+const JUZ_ROTATION_SHIFT = 2;
 
 let cachedAuthUser = null;
 let cachedNamaPanggilan = "";
@@ -65,9 +65,58 @@ let activeSuratElement = null;
 let generatedReportImageUrl = null;
 let allDbAlumni = [];
 let assignedParticipants = [];
+let activeTabId = "tab2";
+let isUserSuperAdmin = false;
 
 let officialStartDate = DEFAULT_START_ISO;
-let manualWeekOffset = 0; // Offset manual untuk pergeseran pekan tanpa merusak riwayat report[cite: 1]
+let manualWeekOffset = 0;
+
+function getReportDocId(weekNum, juzNum, suratName, userId = "") {
+    const safeSurahId = String(suratName || "").replace(/[^a-zA-Z0-9]/g, "_");
+    const cleanUid = String(userId || "").trim().replace(/[^a-zA-Z0-9_-]/g, "_");
+    return cleanUid
+        ? `pekan_${weekNum}_juz_${juzNum}_surat_${safeSurahId}_user_${cleanUid}`
+        : `pekan_${weekNum}_juz_${juzNum}_surat_${safeSurahId}`;
+}
+
+window.switchTab = async function(tabId) {
+    const validTabs = ["tab1", "tab2", "tab3", "tab4"];
+    const targetTab = validTabs.includes(tabId) ? tabId : "tab2";
+    activeTabId = targetTab;
+
+    validTabs.forEach((id, idx) => {
+        const panel = document.getElementById(id);
+        const btn = document.getElementById(`btnTab${idx + 1}`);
+        const isSelected = id === targetTab;
+
+        if (panel) {
+            panel.classList.toggle("hidden", !isSelected);
+            panel.classList.toggle("block", isSelected);
+        }
+
+        if (btn) {
+            btn.classList.toggle("active", isSelected);
+        }
+    });
+
+    const period = getActivePeriodRange();
+    const currentWeek = period.elapsed + 1;
+
+    if (targetTab === "tab1") {
+        updateBadgeStatus();
+        renderTab1Participants();
+    } else if (targetTab === "tab2") {
+        renderTilawahTabs();
+        renderActiveJuzCards(cachedAuthUser);
+        await loadExistingReports(currentWeek);
+    } else if (targetTab === "tab3") {
+        renderColorWheel();
+        await updateWeeklyFastFinishers();
+    } else if (targetTab === "tab4") {
+        await updateYearlyStats();
+        await renderMonthlyRecapTable();
+    }
+};
 
 function getWibMondayStartMs(dateInput) {
     const baseMs = new Date(dateInput).getTime();
@@ -188,6 +237,19 @@ function updateBadgeStatus() {
     `;
 }
 
+async function refreshAllViewsAfterWeekChange() {
+    const period = getActivePeriodRange();
+    updateBadgeStatus();
+    renderTab1Participants();
+    renderTilawahTabs();
+    renderActiveJuzCards(cachedAuthUser);
+    await loadExistingReports(period.elapsed + 1);
+    renderColorWheel();
+    await updateYearlyStats();
+    await renderMonthlyRecapTable();
+    await updateWeeklyFastFinishers();
+}
+
 window.triggerNextWeek = async function() {
     if (!isUserSuperAdmin) {
         alert("Akses ditolak. Fitur ini khusus Super Admin.");
@@ -196,7 +258,6 @@ window.triggerNextWeek = async function() {
     if (!confirm("Geser rotasi pekan ke depan secara manual? Data laporan mingguan lama Anda akan tetap aman.")) return;
 
     manualWeekOffset += 1;
-    const period = getActivePeriodRange();
 
     try {
         if (window.firebaseDb) {
@@ -212,13 +273,7 @@ window.triggerNextWeek = async function() {
         console.error("Gagal menyimpan offset manual:", err);
     }
 
-    updateBadgeStatus();
-    renderTab1Participants();
-    renderActiveJuzCards(cachedAuthUser);
-    await loadExistingReports(period.elapsed + 1);
-    updateYearlyStats();
-    renderColorWheel();
-    updateWeeklyFastFinishers();
+    await refreshAllViewsAfterWeekChange();
 };
 
 window.triggerBackWeek = async function() {
@@ -229,7 +284,6 @@ window.triggerBackWeek = async function() {
     if (!confirm("Kembalikan rotasi pekan ke sebelumnya secara manual?")) return;
 
     manualWeekOffset -= 1;
-    const period = getActivePeriodRange();
 
     try {
         if (window.firebaseDb) {
@@ -245,16 +299,8 @@ window.triggerBackWeek = async function() {
         console.error("Gagal menyimpan offset manual:", err);
     }
 
-    updateBadgeStatus();
-    renderTab1Participants();
-    renderActiveJuzCards(cachedAuthUser);
-    await loadExistingReports(period.elapsed + 1);
-    updateYearlyStats();
-    renderColorWheel();
-    updateWeeklyFastFinishers();
+    await refreshAllViewsAfterWeekChange();
 };
-
-let isUserSuperAdmin = false;
 
 function adjustAdminButtonState() {
     const adminActionContainer = document.getElementById("adminActionButtons");
@@ -262,19 +308,19 @@ function adjustAdminButtonState() {
 
     if (isUserSuperAdmin) {
         adminActionContainer.innerHTML = `
-            <button onclick="triggerBackWeek()" class="bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold text-xs px-3 py-2 rounded-lg transition shadow-md flex items-center gap-1.5" title="Mundur 1 Pekan">
+            <button type="button" onclick="triggerBackWeek()" class="bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold text-xs px-3 py-2 rounded-lg transition shadow-md flex items-center gap-1.5" title="Mundur 1 Pekan">
                 <i class="fa-solid fa-backward-step"></i> Prev Week
             </button>
-            <button onclick="triggerNextWeek()" class="bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold text-xs px-3 py-2 rounded-lg transition shadow-md flex items-center gap-1.5" title="Maju 1 Pekan">
+            <button type="button" onclick="triggerNextWeek()" class="bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold text-xs px-3 py-2 rounded-lg transition shadow-md flex items-center gap-1.5" title="Maju 1 Pekan">
                 <i class="fa-solid fa-forward-step"></i> Next Week
             </button>
-            <button onclick="openManageModal()" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs px-3 py-2 rounded-lg transition shadow-md flex items-center gap-1.5">
+            <button type="button" onclick="openManageModal()" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs px-3 py-2 rounded-lg transition shadow-md flex items-center gap-1.5">
                 <i class="fa-solid fa-user-gear"></i> Kelola Peserta
             </button>
         `;
     } else {
         adminActionContainer.innerHTML = `
-            <button id="btnManageParticipants" onclick="openManageModal()" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs px-4 py-2 rounded-lg transition shadow-md flex items-center gap-2">
+            <button type="button" id="btnManageParticipants" onclick="openManageModal()" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs px-4 py-2 rounded-lg transition shadow-md flex items-center gap-2">
                 <i class="fa-solid fa-user-plus"></i> Kelola Peserta
             </button>
         `;
@@ -298,7 +344,7 @@ function renderTab1Participants() {
 
     tbody.innerHTML = assignedParticipants.map((p, idx) => {
         const isEmpty = !p || !p.id || p.id === "empty_slot";
-        if (isEmpty) return '';
+        if (isEmpty) return "";
 
         const assignedJuz = getJuzForIndex(idx);
         const namaPanggilan = (p.namaPanggilan || "-").toUpperCase();
@@ -316,7 +362,7 @@ function renderTab1Participants() {
                 </td>
                 <td class="p-3.5 text-center">
                     ${isPowerUser ? `
-                        <button onclick="removeParticipant(${idx})" class="text-rose-400 hover:text-rose-300 transition text-xs font-bold px-2 py-1 bg-rose-500/10 rounded-lg border border-rose-500/20">
+                        <button type="button" onclick="removeParticipant(${idx})" class="text-rose-400 hover:text-rose-300 transition text-xs font-bold px-2 py-1 bg-rose-500/10 rounded-lg border border-rose-500/20">
                             <i class="fa-solid fa-trash mr-1"></i> Hapus
                         </button>
                     ` : `<span class="text-slate-500 text-xs">Peserta OWOJ</span>`}
@@ -329,20 +375,20 @@ function renderTab1Participants() {
 function renderTilawahTabs() {
     const totalParticipants = assignedParticipants.length;
     const totalGroups = Math.max(1, Math.ceil(totalParticipants / 30));
-    const container = document.getElementById('tilawahTabsContainer');
+    const container = document.getElementById("tilawahTabsContainer");
 
     if (!container) return;
 
     if (totalParticipants <= 30) {
-        container.innerHTML = '';
+        container.innerHTML = "";
         return;
     }
 
-    let html = '';
+    let html = "";
     for (let i = 1; i <= totalGroups; i++) {
         const isActive = (window.currentTilawahGroup || 1) === i;
         html += `
-            <button type="button" onclick="switchTilawahGroup(${i})" class="px-4 py-2 rounded-xl text-xs font-bold transition ${isActive ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}" data-group="${i}">
+            <button type="button" onclick="switchTilawahGroup(${i})" class="px-4 py-2 rounded-xl text-xs font-bold transition ${isActive ? "bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20" : "bg-slate-800 text-slate-300 hover:bg-slate-700"}" data-group="${i}">
                 LIQO TILAWAH ${i}
             </button>
         `;
@@ -410,25 +456,26 @@ function renderActiveJuzCards(currentUser) {
             isUserAssigned = isUidMatch || isNameMatch;
         }
 
-        let bgClass = (assignedJuz % 2 !== 0) ? 'juz-card-bg-dark' : 'juz-card-bg-lite';
-        if (isUserAssigned) {
-            bgClass = 'juz-card-bg-gold';
-        }
+        const bgClass = isUserAssigned
+            ? "juz-card-bg-gold"
+            : ((assignedJuz % 2 !== 0) ? "juz-card-bg-dark" : "juz-card-bg-lite");
 
         const card = document.createElement("div");
-        card.className = `juz-card-box ${bgClass} ${isUserAssigned ? 'user-assigned' : ''}`;
+        card.className = `juz-card-box ${bgClass} ${isUserAssigned ? "user-assigned" : ""}`;
         card.id = `juz-btn-g${currentGroup}-${assignedJuz}`;
         card.dataset.juz = String(assignedJuz);
         card.dataset.group = String(currentGroup);
+        card.dataset.ownerId = String(ownerId);
+        card.dataset.ownerName = assignedName;
 
-        const nameColorClass = isUserAssigned ? 'text-[#3b3e3f]' : 'text-[#ffffff]';
-        const metaColorClass = isUserAssigned ? 'text-[#ffffff]' : 'text-[#8698b5]';
-        const progressLabelColorClass = isUserAssigned ? 'text-[#ffffff]' : 'text-[#8698b5]';
+        const nameColorClass = isUserAssigned ? "text-[#3b3e3f]" : "text-[#ffffff]";
+        const metaColorClass = isUserAssigned ? "text-[#ffffff]" : "text-[#8698b5]";
+        const progressLabelColorClass = isUserAssigned ? "text-[#ffffff]" : "text-[#8698b5]";
 
         let htmlContent = `
             <div>
                 <div class="flex justify-between items-start mb-2">
-                    <h2 class="text-3xl md:text-4xl font-extralight tracking-tight ${isUserAssigned ? 'text-[#ffffff]' : 'text-[#8698b5]'}">JUZ ${assignedJuz}</h2>
+                    <h2 class="text-3xl md:text-4xl font-extralight tracking-tight ${isUserAssigned ? "text-[#ffffff]" : "text-[#8698b5]"}">JUZ ${assignedJuz}</h2>
                     <div class="text-[12px] opacity-90 font-bold text-right ${metaColorClass}">
                         <div>Nomor Urut: ${index + 1}</div>
                         <div>Pekan ke-${period.pekanProgram} • ${period.monthWeekInfo.label}</div>
@@ -465,10 +512,10 @@ function renderActiveJuzCards(currentUser) {
                 </div>
             </div>
 
-            <div class="space-y-1 pt-2 border-t ${isUserAssigned ? 'border-[#0f172a]/30' : 'border-white/20'}">
+            <div class="space-y-1 pt-2 border-t ${isUserAssigned ? "border-[#0f172a]/30" : "border-white/20"}">
                 <div class="flex justify-between text-[12px] font-semibold opacity-90">
                     <span class="${progressLabelColorClass}">Progres Bacaan Pekan Ini</span>
-                    <span class="${isUserAssigned ? 'text-[#ffffff]' : 'text-amber-400'} font-bold progress-text">0%</span>
+                    <span class="${isUserAssigned ? "text-[#ffffff]" : "text-amber-400"} font-bold progress-text">0%</span>
                 </div>
                 <div class="w-full bg-slate-900/60 h-3 rounded-full overflow-hidden p-0.5 border border-white/20">
                     <div class="bg-amber-400 h-full rounded-full transition-all duration-300 progress-bar-fill" style="width: 0%"></div>
@@ -481,7 +528,6 @@ function renderActiveJuzCards(currentUser) {
     });
 }
 
-
 // ==========================================
 // LOGIKA HAK AKSES KLIK SURAT, REPORT & FIREBASE
 // ==========================================
@@ -492,16 +538,16 @@ window.handleSurahCardClick = function(assignedJuz, surahName, suratAyat, elemen
     }
 
     const currentUserId = String(cachedAuthUser.uid).trim();
-    const targetOwnerId = String(juzOwnerId).trim();
+    const targetOwnerId = String(juzOwnerId || "").trim();
     const role = currentUserRole || "member";
     const loggedInPanggilan = cachedNamaPanggilan ? cachedNamaPanggilan.toUpperCase() : "";
 
     const isOwnerById = targetOwnerId && (currentUserId === targetOwnerId);
     const ownerNameUpper = juzOwnerName ? juzOwnerName.toUpperCase() : "";
-    
-    const isOwnerByName = ownerNameUpper.includes("DEDEN") || 
-                          (loggedInPanggilan && ownerNameUpper.includes(loggedInPanggilan)) ||
-                          (loggedInPanggilan && loggedInPanggilan.includes(ownerNameUpper));
+
+    const isOwnerByName = ownerNameUpper.includes("DEDEN") ||
+        (loggedInPanggilan && ownerNameUpper.includes(loggedInPanggilan)) ||
+        (loggedInPanggilan && loggedInPanggilan.includes(ownerNameUpper));
     const isSuperAdmin = (role === "super_admin");
 
     if (!isOwnerById && !isOwnerByName && !isSuperAdmin) {
@@ -512,23 +558,23 @@ window.handleSurahCardClick = function(assignedJuz, surahName, suratAyat, elemen
     if (isAlreadyCompleted) {
         const confirmUnreport = confirm("Apakah anda ingin menghapus report bacaan anda?");
         if (confirmUnreport) {
-            executeUnreportSurah(assignedJuz, surahName, element);
+            executeUnreportSurah(assignedJuz, surahName, element, targetOwnerId);
         }
         return;
     }
 
-    triggerReportTilawah(assignedJuz, surahName, suratAyat, element);
+    triggerReportTilawah(assignedJuz, surahName, suratAyat, element, targetOwnerId, juzOwnerName);
 };
 
-window.triggerReportTilawah = function(juzNumber, suratName, suratAyat, element) {
-    activeJuzTarget = { juzNumber, suratName, suratAyat };
+window.triggerReportTilawah = function(juzNumber, suratName, suratAyat, element, juzOwnerId = "", juzOwnerName = "") {
+    activeJuzTarget = { juzNumber, suratName, suratAyat, juzOwnerId, juzOwnerName };
     activeSuratElement = element;
-    
+
     const modalText = document.getElementById("confirmReportText");
     if (modalText) {
         modalText.innerHTML = `Apakah anda benar-benar sudah menyelesaikan bacaan surat <b>"${suratName} (ayat ${suratAyat})"</b>?`;
     }
-    
+
     const confirmModal = document.getElementById("confirmReportModal");
     if (confirmModal) {
         confirmModal.classList.remove("hidden");
@@ -549,31 +595,37 @@ document.getElementById("cancelReportBtn")?.addEventListener("click", () => {
 document.getElementById("yesReportBtn")?.addEventListener("click", async () => {
     if (!activeJuzTarget || !activeSuratElement) return;
 
+    const targetSnapshot = { ...activeJuzTarget };
+    const elementSnapshot = activeSuratElement;
+
     const confirmModal = document.getElementById("confirmReportModal");
     if (confirmModal) {
         confirmModal.classList.remove("flex");
         confirmModal.classList.add("hidden");
     }
 
-    const optionsDate = { day: 'numeric', month: 'long', year: 'numeric' };
-    const currentDate = new Date().toLocaleDateString('id-ID', optionsDate);
-    
-    const optionsTime = { hour: '2-digit', minute: '2-digit', hour12: false };
-    const currentTime = "jam : " + new Date().toLocaleTimeString('id-ID', optionsTime);
+    const optionsDate = { day: "numeric", month: "long", year: "numeric" };
+    const currentDate = new Date().toLocaleDateString("id-ID", optionsDate);
 
-    applySurahCompletedVisual(activeSuratElement, currentDate, currentTime);
+    const optionsTime = { hour: "2-digit", minute: "2-digit", hour12: false };
+    const currentTime = "jam : " + new Date().toLocaleTimeString("id-ID", optionsTime);
+
+    applySurahCompletedVisual(elementSnapshot, currentDate, currentTime);
 
     const period = getActivePeriodRange();
     const currentWeek = period.elapsed + 1;
-    const juzNum = activeJuzTarget.juzNumber;
-    const suratName = activeJuzTarget.suratName;
+    const juzNum = targetSnapshot.juzNumber;
+    const suratName = targetSnapshot.suratName;
+    const reporterUid = cachedAuthUser ? cachedAuthUser.uid : "";
+    const effectiveUserId = reporterUid || (activeJuzTarget && activeJuzTarget.juzOwnerId) || "";
+    const reporterName = (cachedNamaPanggilan || (activeJuzTarget && activeJuzTarget.juzOwnerName) || "ALUMNI").toUpperCase();
 
     try {
         if (window.firebaseDb) {
             const { doc, setDoc } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js");
-            const safeSurahId = suratName.replace(/[^a-zA-Z0-9]/g, "_");
-            const reportRef = doc(window.firebaseDb, "tilawah_reports", `pekan_${currentWeek}_juz_${juzNum}_surat_${safeSurahId}`);
-            
+            const docId = getReportDocId(currentWeek, juzNum, suratName, effectiveUserId);
+            const reportRef = doc(window.firebaseDb, "tilawah_reports", docId);
+
             await setDoc(reportRef, {
                 pekan: currentWeek,
                 pekanProgram: period.pekanProgram,
@@ -582,8 +634,8 @@ document.getElementById("yesReportBtn")?.addEventListener("click", async () => {
                 periodeFinishMs: period.finishMs,
                 juz: juzNum,
                 surat: suratName,
-                userId: cachedAuthUser ? cachedAuthUser.uid : "",
-                nama: cachedNamaPanggilan,
+                userId: effectiveUserId,
+                nama: reporterName,
                 tanggal: currentDate,
                 waktu: currentTime,
                 timestamp: new Date().toISOString()
@@ -592,62 +644,58 @@ document.getElementById("yesReportBtn")?.addEventListener("click", async () => {
     } catch (err) {
         console.error("Gagal menyimpan report ke Firebase:", err);
     }
-    
+
     renderColorWheel();
-
-    showWhatsappModal(activeJuzTarget.juzNumber, activeJuzTarget.suratName, currentDate, currentTime);
+    await showWhatsappModal(juzNum, suratName, currentDate, currentTime, reporterName);
 });
-
 
 function applySurahCompletedVisual(element, dateStr, timeStr) {
     element.classList.add("completed");
 
-    const cardBox = element.closest('.juz-card-box');
-    const isGoldCard = cardBox && cardBox.classList.contains('user-assigned');
+    const cardBox = element.closest(".juz-card-box");
+    const isGoldCard = cardBox && cardBox.classList.contains("user-assigned");
 
     if (isGoldCard) {
         element.classList.remove("completed-dark");
         element.classList.add("completed-gold");
-        // Kotak Gold (Aktif) tetap putih dengan teks gold
         element.style.backgroundColor = "#ffffff";
         element.style.borderColor = "#ffffff";
-        
-        const titleEl = element.querySelector('.surah-title');
-        const subTitleEl = element.querySelector('.surah-ayat');
-        const numEl = element.querySelector('.surah-number');
+
+        const titleEl = element.querySelector(".surah-title");
+        const subTitleEl = element.querySelector(".surah-ayat");
+        const numEl = element.querySelector(".surah-number");
         if (titleEl) titleEl.style.color = "#d1ae55";
-        if (subTitleEl) titleEl.style.color = "#d1ae55";
+        if (subTitleEl) subTitleEl.style.color = "#d1ae55";
         if (numEl) numEl.style.color = "#d1ae55";
     } else {
         element.classList.remove("completed-gold");
         element.classList.add("completed-dark");
-        // Kosongkan inline style agar sepenuhnya dikendalikan oleh class .completed-dark di CSS
         element.style.backgroundColor = "";
         element.style.borderColor = "";
     }
 
-    const timeBadge = element.querySelector('.surat-time-badge');
+    const timeBadge = element.querySelector(".surat-time-badge");
     if (timeBadge) {
-        timeBadge.querySelector('.date-text').innerText = dateStr;
-        timeBadge.querySelector('.time-text').innerText = timeStr;
+        const dateEl = timeBadge.querySelector(".date-text");
+        const timeEl = timeBadge.querySelector(".time-text");
+        if (dateEl) dateEl.innerText = dateStr;
+        if (timeEl) timeEl.innerText = timeStr;
         timeBadge.classList.remove("hidden");
 
         if (isGoldCard) {
             timeBadge.style.borderColor = "rgba(209, 174, 85, 0.4)";
-            const dateTextEl = timeBadge.querySelector('.date-text');
-            const timeTextEl = timeBadge.querySelector('.time-text');
-            if (dateTextEl) dateTextEl.style.color = "#d1ae55";
-            if (timeTextEl) timeTextEl.style.color = "#d1ae55";
+            if (dateEl) dateEl.style.color = "#d1ae55";
+            if (timeEl) timeEl.style.color = "#d1ae55";
         }
     }
 
     if (cardBox) {
-        const totalSurahs = cardBox.querySelectorAll('.surah-card').length;
-        const completedSurahs = cardBox.querySelectorAll('.surah-card.completed').length;
-        const percent = Math.round((completedSurahs / totalSurahs) * 100);
+        const totalSurahs = cardBox.querySelectorAll(".surah-card").length;
+        const completedSurahs = cardBox.querySelectorAll(".surah-card.completed").length;
+        const percent = totalSurahs > 0 ? Math.round((completedSurahs / totalSurahs) * 100) : 0;
 
-        const percentText = cardBox.querySelector('.progress-text');
-        const progressBar = cardBox.querySelector('.progress-bar-fill');
+        const percentText = cardBox.querySelector(".progress-text");
+        const progressBar = cardBox.querySelector(".progress-bar-fill");
 
         if (percentText) percentText.innerText = `${percent}%`;
         if (progressBar) progressBar.style.width = `${percent}%`;
@@ -693,22 +741,31 @@ async function loadExistingReports(currentWeek) {
     try {
         const { collection, getDocs, query, where } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js");
         const q = query(collection(window.firebaseDb, "tilawah_reports"), where("pekan", "==", targetWeek));
-        const querySnapshot = await getDocs(q);
+        let querySnapshot = await getDocs(q);
+
+        if (querySnapshot.empty) {
+            querySnapshot = await getDocs(collection(window.firebaseDb, "tilawah_reports"));
+        }
+
+        const currentGroup = window.currentTilawahGroup || 1;
 
         querySnapshot.forEach((docSnap) => {
             const data = docSnap.data();
-            if (!isReportInActivePeriod(data, period)) return;
+            const hasTimestamp = Boolean(data && data.timestamp);
+            if (hasTimestamp && !isReportInActivePeriod(data, period)) {
+                return;
+            }
 
-            const currentGroup = window.currentTilawahGroup || 1;
             const juzCard =
                 document.getElementById(`juz-btn-g${currentGroup}-${data.juz}`) ||
                 document.getElementById(`juz-btn-${data.juz}`);
             if (juzCard) {
-                const surahCards = juzCard.querySelectorAll('.surah-card');
+                const targetSurah = String(data.surat || "").trim().toLowerCase();
+                const surahCards = juzCard.querySelectorAll(".surah-card");
                 surahCards.forEach((sc) => {
-                    const title = sc.querySelector('.surah-title')?.innerText.trim();
-                    if (title === String(data.surat || "").trim()) {
-                        applySurahCompletedVisual(sc, data.tanggal, data.waktu);
+                    const title = (sc.querySelector(".surah-title")?.innerText || "").trim().toLowerCase();
+                    if (title && title === targetSurah) {
+                        applySurahCompletedVisual(sc, data.tanggal || "", data.waktu || "");
                     }
                 });
             }
@@ -747,7 +804,6 @@ async function generateReportImage(juzNumber, suratName, dateStr, timeStr, userN
             ctx.drawImage(bgImg, 0, 0, canvas.width, canvas.height);
 
             ctx.textAlign = "center";
-            ctx.fillStyle = "#1e293b";
 
             ctx.font = "500 36px sans-serif";
             ctx.fillStyle = "#334155";
@@ -768,7 +824,7 @@ async function generateReportImage(juzNumber, suratName, dateStr, timeStr, userN
             ctx.font = "400 36px sans-serif";
             ctx.fillStyle = "#334155";
             ctx.fillText(`Tanggal: ${dateStr}`, canvas.width / 2, 1075);
-            ctx.fillText(`Jam : ${timeStr.replace('jam : ', '')}`, canvas.width / 2, 1135);
+            ctx.fillText(`Jam : ${timeStr.replace("jam : ", "")}`, canvas.width / 2, 1135);
 
             ctx.font = "500 34px sans-serif";
             ctx.fillStyle = "#1e293b";
@@ -781,7 +837,7 @@ async function generateReportImage(juzNumber, suratName, dateStr, timeStr, userN
 
             ctx.font = "bold 32px sans-serif";
             ctx.fillStyle = "#0f172a";
-            ctx.fillText(websiteLink.replace(/^https?:\/\//, ''), canvas.width / 2, 1485);
+            ctx.fillText(websiteLink.replace(/^https?:\/\//, ""), canvas.width / 2, 1485);
 
             const dataUrl = canvas.toDataURL("image/webp", 0.95);
             resolve(dataUrl);
@@ -794,11 +850,11 @@ async function generateReportImage(juzNumber, suratName, dateStr, timeStr, userN
     });
 }
 
-async function showWhatsappModal(juzNumber, suratName, dateStr, timeStr) {
+async function showWhatsappModal(juzNumber, suratName, dateStr, timeStr, customUserName = "") {
     const waModal = document.getElementById("whatsappModal");
     const sendWaBtn = document.getElementById("sendWaBtn");
 
-    const userName = cachedNamaPanggilan.toUpperCase() || "ALUMNI";
+    const userName = (customUserName || cachedNamaPanggilan || "ALUMNI").toUpperCase();
     const websiteLink = window.location.href;
 
     generatedReportImageUrl = await generateReportImage(juzNumber, suratName, dateStr, timeStr, userName, websiteLink);
@@ -814,7 +870,7 @@ async function showWhatsappModal(juzNumber, suratName, dateStr, timeStr) {
 
     const encodedMessage = encodeURIComponent(message);
     if (sendWaBtn) {
-        sendWaBtn.href = "https://api.whatsapp.com/send?text=" + encodedMessage;
+        sendWaBtn.href = "https://wa.me/?text=" + encodedMessage;
     }
 
     if (waModal) {
@@ -824,7 +880,6 @@ async function showWhatsappModal(juzNumber, suratName, dateStr, timeStr) {
 }
 
 async function getPngBlobFromSource(imageSource) {
-    // Jika canvas laporan tersedia dan sudah digambar, manfaatkan langsung ke PNG
     const reportCanvas = document.getElementById("reportCanvas");
     if (reportCanvas && typeof reportCanvas.toBlob === "function") {
         const canvasBlob = await new Promise((resolve) => {
@@ -871,14 +926,12 @@ async function getPngBlobFromSource(imageSource) {
 
 async function copyReportBannerToClipboard(imageSource) {
     if (!navigator.clipboard || typeof navigator.clipboard.write !== "function" || typeof window.ClipboardItem === "undefined") {
-        console.warn("Browser tidak mendukung navigator.clipboard.write atau ClipboardItem.");
         return false;
     }
 
     try {
         const pngBlob = await getPngBlobFromSource(imageSource);
         if (!pngBlob) {
-            console.warn("Gagal menyiapkan blob PNG untuk clipboard.");
             return false;
         }
 
@@ -888,7 +941,6 @@ async function copyReportBannerToClipboard(imageSource) {
             })
         ]);
 
-        console.log("Banner berhasil disalin ke clipboard (image/png).");
         return true;
     } catch (err) {
         console.warn("Gagal menyalin gambar ke clipboard:", err);
@@ -902,7 +954,7 @@ function downloadReportBanner(imageSource) {
     try {
         const downloadLink = document.createElement("a");
         downloadLink.href = imageSource;
-        downloadLink.download = `Laporan_Juz_${activeJuzTarget ? activeJuzTarget.juzNumber : 'OWOJ'}_${(cachedNamaPanggilan || 'ALUMNI').toUpperCase()}.webp`;
+        downloadLink.download = `Laporan_Juz_${activeJuzTarget ? activeJuzTarget.juzNumber : "OWOJ"}_${(cachedNamaPanggilan || "ALUMNI").toUpperCase()}.webp`;
         document.body.appendChild(downloadLink);
         downloadLink.click();
         document.body.removeChild(downloadLink);
@@ -917,29 +969,40 @@ window.handleSendWhatsAppAndClose = async function(event) {
     }
 
     const sendWaBtn = document.getElementById("sendWaBtn");
-    const waUrl = sendWaBtn ? sendWaBtn.getAttribute("href") : "";
+    const rawHref = sendWaBtn ? (sendWaBtn.getAttribute("href") || "") : "";
+    const waUrl = rawHref.replace(/^https:\/\/api\.whatsapp\.com\/send\?/i, "https://wa.me/");
 
     if (generatedReportImageUrl) {
-        // 1. Coba salin gambar ke clipboard terlebih dahulu
         await copyReportBannerToClipboard(generatedReportImageUrl);
-
-        // 2. Tetap unduh gambar sebagai cadangan
-        downloadReportBanner(generatedReportImageUrl);
     }
 
-    // 3. Tutup modal laporan
     const waModal = document.getElementById("whatsappModal");
     if (waModal) {
         waModal.classList.remove("flex");
         waModal.classList.add("hidden");
     }
 
-    // 4. Buka WhatsApp dengan pesan teks tetap diprioritaskan
     if (waUrl && waUrl !== "#") {
         const openedWin = window.open(waUrl, "_blank", "noopener,noreferrer");
-        if (!openedWin) {
-            window.location.href = waUrl;
+        if (openedWin) {
+            try {
+                openedWin.opener = null;
+            } catch (_) {}
+        } else {
+            const tempAnchor = document.createElement("a");
+            tempAnchor.href = waUrl;
+            tempAnchor.target = "_blank";
+            tempAnchor.rel = "noopener noreferrer";
+            document.body.appendChild(tempAnchor);
+            tempAnchor.click();
+            document.body.removeChild(tempAnchor);
         }
+    }
+
+    if (generatedReportImageUrl) {
+        setTimeout(() => {
+            downloadReportBanner(generatedReportImageUrl);
+        }, 300);
     }
 };
 
@@ -959,28 +1022,23 @@ window.openManageModal = function() {
     if (modal) {
         modal.classList.remove("hidden");
         modal.classList.add("flex");
-        
+
         const selectEl = document.getElementById("alumniDbSelect");
         if (selectEl) {
-            // 1. Ambil ID alumni yang sudah terdaftar sebagai peserta tilawah agar tidak muncul lagi
-            const registeredIds = assignedParticipants.map(p => p.id);
+            const registeredIds = assignedParticipants.map(p => p && p.id).filter(Boolean);
 
-            // 2. Filter data: Sembunyikan role 'admin' atau 'super_admin' DAN yang sudah terdaftar
             const filteredAlumni = allDbAlumni.filter(a => {
                 const role = (a.role || "member").toLowerCase();
                 const isAdminOrSuper = role === "admin" || role === "super_admin";
                 const isAlreadyRegistered = registeredIds.includes(a.id);
 
-                // Hanya ambil yang bukan admin/super admin dan belum terdaftar
                 return !isAdminOrSuper && !isAlreadyRegistered;
             });
 
-            // 3. Render ke dalam dropdown alumni
-            selectEl.innerHTML = '<option value="">-- Pilih Alumni --</option>' + 
-                filteredAlumni.map(a => `<option value="${a.id}">${a.namaLengkap || a.namaPanggilan || 'Alumni'} (${a.namaPanggilan || '-'})</option>`).join('');
+            selectEl.innerHTML = '<option value="">-- Pilih Alumni --</option>' +
+                filteredAlumni.map(a => `<option value="${a.id}">${a.namaLengkap || a.namaPanggilan || "Alumni"} (${a.namaPanggilan || "-"})</option>`).join("");
         }
 
-        // 4. Render Dropdown Slot Manual 1 - 60 (Hanya tampilkan slot yang belum terisi)
         const slotSelectEl = document.getElementById("manualSlotSelect");
         if (slotSelectEl) {
             let optionsHtml = '<option value="">-- Pilih Nomor Urut (1 - 60) --</option>';
@@ -989,7 +1047,6 @@ window.openManageModal = function() {
                 const existingParticipant = assignedParticipants[targetIdx];
                 const isOccupied = existingParticipant && existingParticipant.id && existingParticipant.id !== "empty_slot";
 
-                // Jika slot belum terisi, tampilkan sebagai pilihan di dropdown
                 if (!isOccupied) {
                     optionsHtml += `<option value="${i}">Nomor Urut ${i}</option>`;
                 }
@@ -1011,7 +1068,7 @@ window.saveParticipantToSlot = async function() {
     const selectEl = document.getElementById("alumniDbSelect");
     const slotSelectEl = document.getElementById("manualSlotSelect");
     if (!selectEl) return;
-    
+
     const alumniId = selectEl.value;
     if (!alumniId) {
         alert("Silakan pilih alumni terlebih dahulu!");
@@ -1021,7 +1078,7 @@ window.saveParticipantToSlot = async function() {
     const selected = allDbAlumni.find(a => a.id === alumniId);
     if (!selected) return;
 
-    if (assignedParticipants.some(p => p.id && p.id === selected.id)) {
+    if (assignedParticipants.some(p => p && p.id && p.id === selected.id)) {
         alert("Alumni ini sudah terdaftar sebagai peserta OWOJ!");
         return;
     }
@@ -1085,8 +1142,8 @@ window.saveParticipantToSlot = async function() {
     const period = getActivePeriodRange();
     await loadExistingReports(period.elapsed + 1);
     renderColorWheel();
-    updateYearlyStats();
-    renderMonthlyRecapTable();
+    await updateYearlyStats();
+    await renderMonthlyRecapTable();
 };
 
 window.removeParticipant = async function(index) {
@@ -1120,37 +1177,37 @@ window.removeParticipant = async function(index) {
     const period = getActivePeriodRange();
     await loadExistingReports(period.elapsed + 1);
     renderColorWheel();
-    updateYearlyStats();
-    renderMonthlyRecapTable();
+    await updateYearlyStats();
+    await renderMonthlyRecapTable();
 };
 
 // ==========================================
-// COLOR WHEEL DYNAMIC PROGRES MINGGUAN (FULL MAKSIMAL & TANPA KOTAK)
+// COLOR WHEEL DYNAMIC PROGRES MINGGUAN
 // ==========================================
 function renderColorWheel() {
-    const container = document.getElementById('tab3') || document.querySelector('#tab3 .space-y-8');
+    const container = document.getElementById("tab3") || document.querySelector("#tab3 .space-y-8");
     if (!container) return;
 
-    let wheelsWrapper = document.getElementById('colorWheelsDynamicWrapper');
+    let wheelsWrapper = document.getElementById("colorWheelsDynamicWrapper");
     if (!wheelsWrapper) {
-        wheelsWrapper = document.createElement('div');
-        wheelsWrapper.id = 'colorWheelsDynamicWrapper';
-        wheelsWrapper.className = 'space-y-12 w-full flex flex-col items-center justify-center';
-        
-        const hoverInfo = document.getElementById('wheelHoverInfo');
+        wheelsWrapper = document.createElement("div");
+        wheelsWrapper.id = "colorWheelsDynamicWrapper";
+        wheelsWrapper.className = "space-y-12 w-full flex flex-col items-center justify-center";
+
+        const hoverInfo = document.getElementById("wheelHoverInfo");
         const parentBox = hoverInfo ? hoverInfo.parentNode : container;
         parentBox.insertBefore(wheelsWrapper, hoverInfo);
     }
 
-    wheelsWrapper.innerHTML = '';
+    wheelsWrapper.innerHTML = "";
 
     const totalParticipants = assignedParticipants.length;
     const totalGroups = Math.max(1, Math.ceil(totalParticipants / 30));
     const period = getActivePeriodRange();
 
     for (let g = 1; g <= totalGroups; g++) {
-        const groupCardBox = document.createElement('div');
-        groupCardBox.className = 'w-full max-w-3xl text-center space-y-4 px-2 py-4';
+        const groupCardBox = document.createElement("div");
+        groupCardBox.className = "w-full max-w-3xl text-center space-y-4 px-2 py-4";
 
         groupCardBox.innerHTML = `
             <div>
@@ -1182,10 +1239,10 @@ function renderColorWheel() {
             const targetJuzCard =
                 document.getElementById(`juz-btn-g${g}-${juzNum}`) ||
                 document.getElementById(`juz-btn-${juzNum}`);
-            
+
             if (targetJuzCard) {
-                const totalSurahs = targetJuzCard.querySelectorAll('.surah-card').length;
-                const completedSurahs = targetJuzCard.querySelectorAll('.surah-card.completed').length;
+                const totalSurahs = targetJuzCard.querySelectorAll(".surah-card").length;
+                const completedSurahs = targetJuzCard.querySelectorAll(".surah-card.completed").length;
                 if (totalSurahs > 0) {
                     percent = Math.round((completedSurahs / totalSurahs) * 100);
                 }
@@ -1222,7 +1279,7 @@ function renderColorWheel() {
                 const dy2 = cy + dynamicRadius * Math.sin(Math.PI * endAngle / 180);
 
                 const fillPathData = `M ${dx1} ${dy1} A ${dynamicRadius} ${dynamicRadius} 0 0 1 ${dx2} ${dy2} L ${x3} ${y3} A ${rInner} ${rInner} 0 0 0 ${x4} ${y4} Z`;
-                
+
                 const fillPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
                 fillPath.setAttribute("d", fillPathData);
                 fillPath.setAttribute("fill", baseColor);
@@ -1279,7 +1336,7 @@ function renderColorWheel() {
 }
 
 // ==========================================
-// INTEGRASI REAL-TIME LAPORAN TAHUNAN & LEADERBOARD (DIREVISI)
+// INTEGRASI REAL-TIME LAPORAN TAHUNAN & LEADERBOARD
 // ==========================================
 async function updateYearlyStats() {
     const totalKhatamEl = document.getElementById("yearlyTotalKhatam");
@@ -1313,7 +1370,8 @@ async function updateYearlyStats() {
 
         snap.forEach(docSnap => {
             const data = docSnap.data();
-            const uniqueKey = `${data.pekan}_${data.juz}_${data.surat}_${data.nama}`;
+            const ownerKey = data.userId || data.nama || docSnap.id;
+            const uniqueKey = `${data.pekan}_${data.juz}_${data.surat}_${ownerKey}`;
             if (uniqueReportKeys.has(uniqueKey)) return;
             uniqueReportKeys.add(uniqueKey);
 
@@ -1350,7 +1408,8 @@ async function updateYearlyStats() {
 
         if (totalKhatamEl) totalKhatamEl.innerText = `${totalKhatamCount} Kali`;
 
-        const totalTargetReports = assignedParticipants.length * 30 * currentWeek;
+        const activeCount = assignedParticipants.filter(p => p && p.id && p.id !== "empty_slot").length;
+        const totalTargetReports = activeCount * 30 * currentWeek;
         const totalActualReports = reports.length;
         const disciplinePercent = totalTargetReports > 0 ? Math.min(100, Math.round((totalActualReports / totalTargetReports) * 100)) : 0;
 
@@ -1364,7 +1423,7 @@ async function updateYearlyStats() {
             if (sortedLeaderboard.length === 0) {
                 leaderboardBody.innerHTML = `<tr><td colspan="4" class="py-6 text-center text-slate-500">Belum ada riwayat laporan yang masuk.</td></tr>`;
             } else {
-                const badges = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣'];
+                const badges = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣"];
                 leaderboardBody.innerHTML = sortedLeaderboard.map(([name, count], idx) => `
                     <tr class="hover:bg-slate-900/50 transition">
                         <td class="py-2.5 font-bold text-amber-400">${badges[idx] || idx + 1} Rank ${idx + 1}</td>
@@ -1372,7 +1431,7 @@ async function updateYearlyStats() {
                         <td class="py-2.5 text-center font-bold text-emerald-400">${count} Surat</td>
                         <td class="py-2.5 text-right"><span class="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-bold px-2 py-0.5 rounded-md">Istiqomah</span></td>
                     </tr>
-                `).join('');
+                `).join("");
             }
         }
 
@@ -1394,7 +1453,7 @@ async function updateYearlyStats() {
                         </div>
                         <span class="text-[11px] font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-lg border border-amber-500/20">${count}x Cepat</span>
                     </div>
-                `).join('');
+                `).join("");
             }
         }
 
@@ -1406,39 +1465,38 @@ async function updateYearlyStats() {
 // ==========================================
 // FUNGSI PEMBATALAN LAPORAN (UNREPORT) & HAPUS DARI FIREBASE
 // ==========================================
-async function executeUnreportSurah(juzNumber, suratName, element) {
+async function executeUnreportSurah(juzNumber, suratName, element, ownerId = "") {
     element.classList.remove("completed", "completed-gold", "completed-dark");
     element.style.backgroundColor = "";
     element.style.borderColor = "";
 
-    // Bersihkan inline style pada elemen teks agar kembali mengikuti aturan default CSS
-    const titleEl = element.querySelector('.surah-title');
-    const subTitleEl = element.querySelector('.surah-ayat');
-    const numEl = element.querySelector('.surah-number');
-    
+    const titleEl = element.querySelector(".surah-title");
+    const subTitleEl = element.querySelector(".surah-ayat");
+    const numEl = element.querySelector(".surah-number");
+
     if (titleEl) titleEl.style.color = "";
     if (subTitleEl) subTitleEl.style.color = "";
     if (numEl) numEl.style.color = "";
 
-    const timeBadge = element.querySelector('.surat-time-badge');
+    const timeBadge = element.querySelector(".surat-time-badge");
     if (timeBadge) {
         timeBadge.classList.add("hidden");
         timeBadge.style.borderColor = "";
-        
-        const dateTextEl = timeBadge.querySelector('.date-text');
-        const timeTextEl = timeBadge.querySelector('.time-text');
+
+        const dateTextEl = timeBadge.querySelector(".date-text");
+        const timeTextEl = timeBadge.querySelector(".time-text");
         if (dateTextEl) dateTextEl.style.color = "";
         if (timeTextEl) timeTextEl.style.color = "";
     }
 
-    const cardBox = element.closest('.juz-card-box');
+    const cardBox = element.closest(".juz-card-box");
     if (cardBox) {
-        const totalSurahs = cardBox.querySelectorAll('.surah-card').length;
-        const completedSurahs = cardBox.querySelectorAll('.surah-card.completed').length;
-        const percent = Math.round((completedSurahs / totalSurahs) * 100);
+        const totalSurahs = cardBox.querySelectorAll(".surah-card").length;
+        const completedSurahs = cardBox.querySelectorAll(".surah-card.completed").length;
+        const percent = totalSurahs > 0 ? Math.round((completedSurahs / totalSurahs) * 100) : 0;
 
-        const percentText = cardBox.querySelector('.progress-text');
-        const progressBar = cardBox.querySelector('.progress-bar-fill');
+        const percentText = cardBox.querySelector(".progress-text");
+        const progressBar = cardBox.querySelector(".progress-bar-fill");
 
         if (percentText) percentText.innerText = `${percent}%`;
         if (progressBar) progressBar.style.width = `${percent}%`;
@@ -1446,43 +1504,54 @@ async function executeUnreportSurah(juzNumber, suratName, element) {
 
     const period = getActivePeriodRange();
     const currentWeek = period.elapsed + 1;
+    const effectiveUid = (cachedAuthUser && cachedAuthUser.uid) || "";
+
     try {
         if (window.firebaseDb) {
             const { doc, deleteDoc } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js");
-            const safeSurahId = suratName.replace(/[^a-zA-Z0-9]/g, "_");
-            await deleteDoc(doc(window.firebaseDb, "tilawah_reports", `pekan_${currentWeek}_juz_${juzNumber}_surat_${safeSurahId}`));
+            const docIdWithUser = getReportDocId(currentWeek, juzNumber, suratName, effectiveUid);
+            const legacyDocId = getReportDocId(currentWeek, juzNumber, suratName, "");
+
+            await deleteDoc(doc(window.firebaseDb, "tilawah_reports", docIdWithUser)).catch(() => {});
+            if (docIdWithUser !== legacyDocId) {
+                await deleteDoc(doc(window.firebaseDb, "tilawah_reports", legacyDocId)).catch(() => {});
+            }
         }
     } catch (err) {
         console.error("Gagal menghapus report dari Firebase:", err);
     }
+
+    renderColorWheel();
 }
 
 window.initTilawahDashboard = async function(user, namaPanggilan) {
     cachedAuthUser = user;
-    cachedNamaPanggilan = namaPanggilan || (user && user.email ? user.email.split('@')[0] : "");
+    cachedNamaPanggilan = namaPanggilan || (user && user.email ? user.email.split("@")[0] : "");
+    currentUserRole = "member";
+    isUserSuperAdmin = false;
 
     try {
         if (window.firebaseDb) {
             const { collection, getDocs, doc, getDoc } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js");
-            
+
             if (user) {
                 const userDoc = await getDoc(doc(window.firebaseDb, "alumni", user.uid));
                 const userEmail = (user.email || "").trim().toLowerCase();
                 const allowedTilawahAdmins = ["denzrusmana060f08@gmail.com"];
-                let isTilawahAdminByEmail = allowedTilawahAdmins.includes(userEmail);
+                const isTilawahAdminByEmail = allowedTilawahAdmins.includes(userEmail);
 
                 if (userDoc.exists()) {
                     const userData = userDoc.data();
                     currentUserRole = userData.role || "member";
-                    isUserSuperAdmin = (currentUserRole === "super_admin" || userEmail === "denzrusmana060f08@gmail.com");
+                    isUserSuperAdmin = (currentUserRole === "super_admin" || isTilawahAdminByEmail);
 
                     const namaPanggilanUpper = (userData.namaPanggilan || "").trim().toUpperCase();
                     const namaLengkapUpper = (userData.namaLengkap || "").trim().toUpperCase();
 
                     const isMainAdmin = (currentUserRole === "admin" || currentUserRole === "super_admin");
-                    const isTilawahAdminByName = namaPanggilanUpper.includes("NANA OCIN") || 
-                                                 namaLengkapUpper.includes("NANA OCIN") ||
-                                                 userData.tilawahRole === "admin";
+                    const isTilawahAdminByName = namaPanggilanUpper.includes("NANA OCIN") ||
+                        namaLengkapUpper.includes("NANA OCIN") ||
+                        userData.tilawahRole === "admin";
 
                     if (isMainAdmin || isTilawahAdminByName || isTilawahAdminByEmail) {
                         const adminBtns = document.getElementById("adminActionButtons");
@@ -1518,7 +1587,7 @@ window.initTilawahDashboard = async function(user, namaPanggilan) {
             alumniSnap.forEach(d => allDbAlumni.push({ id: d.id, ...d.data() }));
 
             const tilawahDoc = await getDoc(doc(window.firebaseDb, "settings", "tilawah_participants"));
-            if (tilawahDoc.exists() && tilawahDoc.data().participants) {
+            if (tilawahDoc.exists() && Array.isArray(tilawahDoc.data().participants)) {
                 assignedParticipants = tilawahDoc.data().participants;
             }
         }
@@ -1530,14 +1599,16 @@ window.initTilawahDashboard = async function(user, namaPanggilan) {
     renderTab1Participants();
     renderTilawahTabs();
     renderActiveJuzCards(user);
-    
+
     const period = getActivePeriodRange();
     await loadExistingReports(period.elapsed + 1);
 
     renderColorWheel();
-    updateYearlyStats();
-    renderMonthlyRecapTable();
-    updateWeeklyFastFinishers();
+    await updateYearlyStats();
+    await renderMonthlyRecapTable();
+    await updateWeeklyFastFinishers();
+
+    window.switchTab(activeTabId || "tab2");
 
     if (!window.__tilawahWeekWatcherInterval) {
         let lastKnownElapsedWeeks = getElapsedWeeks();
@@ -1545,14 +1616,7 @@ window.initTilawahDashboard = async function(user, namaPanggilan) {
             const latestElapsedWeeks = getElapsedWeeks();
             if (latestElapsedWeeks !== lastKnownElapsedWeeks) {
                 lastKnownElapsedWeeks = latestElapsedWeeks;
-                updateBadgeStatus();
-                renderTab1Participants();
-                renderActiveJuzCards(cachedAuthUser);
-                await loadExistingReports(latestElapsedWeeks + 1);
-                renderColorWheel();
-                updateYearlyStats();
-                renderMonthlyRecapTable();
-                updateWeeklyFastFinishers();
+                await refreshAllViewsAfterWeekChange();
             }
         }, 60000);
     }
@@ -1601,14 +1665,13 @@ async function updateWeeklyFastFinishers() {
                         </div>
                         <span class="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-lg border border-emerald-500/20">Selesai Pekan Ini</span>
                     </div>
-                `).join('');
+                `).join("");
             }
         }
     } catch (err) {
         console.error("Gagal memuat early/fast finishers mingguan:", err);
     }
 }
-
 
 // ==========================================
 // RENDER TABEL MATRIKS REKAPITULASI BULANAN (BERBASIS MINGGU KALENDER MASEHI)
@@ -1678,7 +1741,7 @@ window.renderMonthlyRecapTable = async function() {
             const namaPanggilan = (p.namaPanggilan || "Alumni").toUpperCase();
             const userCalendarReports = recapData[namaPanggilan] || {};
 
-            let weeksHtml = '';
+            let weeksHtml = "";
             for (let w = 1; w <= 5; w++) {
                 const weekData = userCalendarReports[w];
                 let badgeContent = `<span class="text-slate-600">-</span>`;
@@ -1689,9 +1752,9 @@ window.renderMonthlyRecapTable = async function() {
                     const completedCount = weekData.suratSet.size;
                     const percent = Math.min(100, Math.round((completedCount / totalSurahInJuz) * 100));
 
-                    const badgeColor = percent >= 100 
-                        ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' 
-                        : 'bg-amber-500/20 text-amber-400 border-amber-500/30';
+                    const badgeColor = percent >= 100
+                        ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
+                        : "bg-amber-500/20 text-amber-400 border-amber-500/30";
 
                     badgeContent = `
                         <div class="inline-block px-2.5 py-1.5 rounded-lg text-[11px] font-bold border ${badgeColor} text-center leading-tight shadow-sm">
@@ -1711,7 +1774,7 @@ window.renderMonthlyRecapTable = async function() {
                     ${weeksHtml}
                 </tr>
             `;
-        }).join('');
+        }).join("");
 
     } catch (err) {
         console.error("Gagal merender rekapitulasi bulanan:", err);
