@@ -124,7 +124,7 @@ const megaData = {
             { text: "RInDU - Inspirasi & Edukasi", href: "https://ikasman11bandung98.wordpress.com/", external: true },
             { text: "Tips Bermanfaat", href: "#" },
             { text: "Rumor - Ruang Humor", href: "https://rumorikasman11bdg98.wordpress.com/", external: true },
-            { text: "Rubik - Bisnis & Komersial", href: "https://fjbikasman11bdg98.wordpress.com/", external: true }
+            { text: "Rubik - Bisnis & Komersial", href: "rubik.html" }
         ]
     },
     "donasi": {

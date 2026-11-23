@@ -240,13 +240,6 @@
                 });
             }
 
-            if (photos.length === 0 && data.foto) {
-                photos.push({
-                    image: data.foto,
-                    caption: data.rubikNamaPerusahaan || data.namaUsaha || data.namaPanggilan || "Portofolio Alumni"
-                });
-            }
-
             if (photos.length === 0) {
                 photos.push({
                     image: "assets/images/logoikagrey.png",
@@ -266,7 +259,8 @@
                 (data.rubikNamaPerusahaan && data.rubikNamaPerusahaan.trim()) ||
                 (data.rubikNarasiUsaha && data.rubikNarasiUsaha.trim()) ||
                 (Array.isArray(data.rubikGaleri) && data.rubikGaleri.length > 0) ||
-                (data.statusPekerjaan === "wirausaha" && (data.namaUsaha || data.jenisUsaha))
+                (data.statusPekerjaan === "wirausaha" && (data.namaUsaha || data.jenisUsaha)) ||
+                (data.keahlian && data.keahlian.trim())
             );
         }
 
@@ -281,14 +275,19 @@
                     if (hasRubikContent(data)) {
                         const uid = data.uid || docSnap.id;
                         const photos = buildPhotosForEntry(data);
+                        const namaPanggilan = (data.namaPanggilan || data.namaLengkap || "ALUMNI").toUpperCase();
+                        const namaUsaha = (data.rubikNamaPerusahaan || data.namaUsaha || data.keahlian || namaPanggilan || "Usaha Alumni").trim();
+                        const kategori = (data.rubikKategoriUsaha || data.jenisUsaha || (data.keahlian ? "Keahlian & Jasa" : "Lainnya")).trim();
+                        const narasi = (data.rubikNarasiUsaha || data.keahlian || "").trim();
+
                         entries.push({
                             id: docSnap.id,
                             uid,
-                            namaPanggilan: (data.namaPanggilan || data.namaLengkap || "ALUMNI").toUpperCase(),
+                            namaPanggilan,
                             namaLengkap: data.namaLengkap || "",
-                            namaUsaha: (data.rubikNamaPerusahaan || data.namaUsaha || data.namaPanggilan || "Usaha Alumni").trim(),
-                            kategori: (data.rubikKategoriUsaha || data.jenisUsaha || "Lainnya").trim(),
-                            narasi: (data.rubikNarasiUsaha || "").trim(),
+                            namaUsaha,
+                            kategori,
+                            narasi,
                             photos,
                             noUrut: data.noUrut || 999999
                         });
@@ -314,8 +313,12 @@
             const counterEl = document.getElementById(`rubikSlidePos_${entryId}`);
 
             if (imgEl && current) {
+                const isPlaceholderImg = current.image.includes("logoikagrey.png");
                 imgEl.src = current.image;
                 imgEl.alt = current.caption;
+                imgEl.className = isPlaceholderImg
+                    ? "w-full h-full object-contain p-8 opacity-60"
+                    : "w-full h-full object-cover";
             }
             if (capEl && current) {
                 capEl.textContent = current.caption;
@@ -332,7 +335,7 @@
             gridEl.innerHTML = "";
 
             if (list.length === 0) {
-                gridEl.innerHTML = `<div class="col-span-full text-center py-12 text-slate-400">Belum ada usaha atau portofolio yang sesuai dengan pencarian/kategori.</div>`;
+                gridEl.innerHTML = `<div class="col-span-full text-center py-12 text-slate-400">Belum ada usaha, jasa, keahlian, atau portofolio yang sesuai dengan pencarian/kategori.</div>`;
                 return;
             }
 
@@ -343,6 +346,13 @@
 
                 const firstPhoto = entry.photos[0];
                 const hasMultiple = entry.photos.length > 1;
+                const isPlaceholderImg = firstPhoto.image.includes("logoikagrey.png");
+
+                const rawCaption = (firstPhoto.caption || "").trim();
+                const displayDesc =
+                    rawCaption && rawCaption.toLowerCase() !== entry.namaUsaha.toLowerCase()
+                        ? rawCaption
+                        : (entry.narasi || entry.kategori);
 
                 const card = document.createElement("div");
                 card.className = "rubik-box-card rounded-2xl p-3 flex flex-col justify-between cursor-pointer";
@@ -357,7 +367,9 @@
                 imgEl.id = `rubikImg_${entry.id}`;
                 imgEl.src = firstPhoto.image;
                 imgEl.alt = firstPhoto.caption;
-                imgEl.className = "w-full h-full object-cover";
+                imgEl.className = isPlaceholderImg
+                    ? "w-full h-full object-contain p-8 opacity-60"
+                    : "w-full h-full object-cover";
 
                 mediaWrapper.appendChild(imgEl);
 
@@ -406,7 +418,7 @@
                         <span class="text-[10px] font-bold text-slate-400 shrink-0">${entry.namaPanggilan}</span>
                     </div>
                     <h3 class="font-bold text-white text-sm truncate">${entry.namaUsaha}</h3>
-                    <p id="rubikCap_${entry.id}" class="text-xs text-slate-400 line-clamp-2 leading-snug min-h-[2rem]">${firstPhoto.caption}</p>
+                    <p id="rubikCap_${entry.id}" class="text-xs text-slate-400 line-clamp-2 leading-snug min-h-[2rem]">${displayDesc}</p>
                 `;
 
                 card.appendChild(mediaWrapper);

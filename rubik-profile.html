@@ -352,8 +352,8 @@
 
             const namaPanggilan = (data.namaPanggilan || data.namaLengkap || "ALUMNI").toUpperCase();
             const namaLengkap = data.namaLengkap || "-";
-            const namaUsaha = (data.rubikNamaPerusahaan || data.namaUsaha || `Usaha ${namaPanggilan}`).trim();
-            const kategori = (data.rubikKategoriUsaha || data.jenisUsaha || "Ruang Bisnis Alumni").trim();
+            const namaUsaha = (data.rubikNamaPerusahaan || data.namaUsaha || data.keahlian || `Usaha ${namaPanggilan}`).trim();
+            const kategori = (data.rubikKategoriUsaha || data.jenisUsaha || (data.keahlian ? "Keahlian & Jasa" : "Ruang Bisnis Alumni")).trim();
 
             document.title = `${namaPanggilan} - ${namaUsaha} | Rubik IKA 11.98`;
 
@@ -367,13 +367,23 @@
             document.getElementById("profNamaLengkap").textContent = namaLengkap;
             document.getElementById("profOwnerPhoto").src = data.foto || "assets/images/tumb 06 login.webp";
 
-            document.getElementById("profCompanyLogo").src = data.rubikLogoUsaha || data.foto || "assets/images/logoikagrey.png";
+            document.getElementById("profCompanyLogo").src = data.rubikLogoUsaha || "assets/images/logoikagrey.png";
             document.getElementById("profCompanyName").textContent = namaUsaha;
             document.getElementById("profKelasBadge").textContent = data.kelas ? `Alumni ${data.kelas}` : "IKA SMAN 11 Bandung '98";
 
-            // Narasi Company Profile
+            // Narasi Company Profile + fallback keahlian/bidang
             const narasi = (data.rubikNarasiUsaha || "").trim();
-            document.getElementById("profNarasiUsaha").textContent = narasi || `Profil usaha dan portofolio karya dari ${namaPanggilan} (${namaLengkap}). Silakan hubungi Contact Person untuk informasi produk, jasa, maupun kerja sama.`;
+            const fallbackInfo = [
+                data.jenisUsaha ? `Bidang: ${data.jenisUsaha}` : "",
+                data.jabatan ? `Peran/Keahlian: ${data.jabatan}` : "",
+                data.keahlian ? `Keahlian Utama: ${data.keahlian}` : ""
+            ].filter(Boolean).join(" • ");
+
+            document.getElementById("profNarasiUsaha").textContent =
+                narasi ||
+                (fallbackInfo
+                    ? `${fallbackInfo}\n\nProfil usaha, jasa, dan portofolio karya dari ${namaPanggilan} (${namaLengkap}). Silakan hubungi Contact Person untuk informasi lebih lanjut.`
+                    : `Profil usaha dan portofolio karya dari ${namaPanggilan} (${namaLengkap}). Silakan hubungi Contact Person untuk informasi produk, jasa, maupun kerja sama.`);
 
             // Alamat, Email & Sosmed
             document.getElementById("profAlamatUsaha").textContent = (data.rubikAlamatUsaha || data.alamatKota || "-").trim();

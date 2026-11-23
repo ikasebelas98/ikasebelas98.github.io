@@ -474,20 +474,61 @@
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
                                     <label class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5">Kategori Usaha / Bidang</label>
-                                    <select id="rubikKategoriUsaha" class="w-full bg-slate-950/90 border border-slate-800 rounded-xl py-2.5 px-3.5 text-slate-100 text-sm focus:outline-none focus:border-gold-500 transition">
-                                        <option value="" class="bg-slate-950 text-slate-400">-- Pilih Kategori Usaha --</option>
-                                        <option value="Kuliner & F&B" class="bg-slate-950 text-slate-100">Kuliner & F&B</option>
-                                        <option value="Fashion, Konveksi & Kriya" class="bg-slate-950 text-slate-100">Fashion, Konveksi & Kriya</option>
-                                        <option value="Jasa Profesional & Konsultan" class="bg-slate-950 text-slate-100">Jasa Profesional & Konsultan</option>
-                                        <option value="Kreatif, Media & Digital" class="bg-slate-950 text-slate-100">Kreatif, Media & Digital</option>
-                                        <option value="Properti, Konstruksi & Interior" class="bg-slate-950 text-slate-100">Properti, Konstruksi & Interior</option>
-                                        <option value="Otomotif & Bengkel" class="bg-slate-950 text-slate-100">Otomotif & Bengkel</option>
-                                        <option value="Kesehatan, Kecantikan & Kebugaran" class="bg-slate-950 text-slate-100">Kesehatan, Kecantikan & Kebugaran</option>
-                                        <option value="Pendidikan, Pelatihan & Kursus" class="bg-slate-950 text-slate-100">Pendidikan, Pelatihan & Kursus</option>
-                                        <option value="Agribisnis, Pertanian & Peternakan" class="bg-slate-950 text-slate-100">Agribisnis, Pertanian & Peternakan</option>
-                                        <option value="Perdagangan Umum & Retail" class="bg-slate-950 text-slate-100">Perdagangan Umum & Retail</option>
-                                        <option value="Lainnya" class="bg-slate-950 text-slate-100">Lainnya</option>
-                                    </select>
+                                    <div class="relative" id="rubikKategoriDropdownWrapper">
+                                        <button type="button" id="btnToggleRubikKategori" onclick="toggleRubikKategoriDropdown()"
+                                            class="w-full bg-slate-950/90 border border-slate-800 hover:border-gold-500/60 rounded-xl py-2.5 px-3.5 text-left text-sm flex items-center justify-between gap-2 transition focus:outline-none">
+                                            <span id="rubikKategoriSummary" class="text-slate-300 truncate">-- Pilih Kategori Usaha (Bisa Lebih dari 1) --</span>
+                                            <i id="iconRubikKategoriChevron" class="fa-solid fa-chevron-down text-xs text-gold-400 shrink-0 transition-transform"></i>
+                                        </button>
+
+                                        <div id="rubikKategoriGroup" class="hidden mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2 bg-slate-950 border border-slate-700/80 rounded-xl p-3 max-h-56 overflow-y-auto shadow-xl">
+                                            <label class="flex items-center gap-2.5 text-xs text-slate-200 cursor-pointer select-none py-1 px-1.5 rounded-lg hover:bg-slate-900 transition">
+                                                <input type="checkbox" name="rubikKategoriUsaha" value="Kuliner & F&B" onchange="updateRubikKategoriSummary()" class="rubik-cat-checkbox w-4 h-4 shrink-0 accent-amber-500 cursor-pointer" style="-webkit-appearance: checkbox; appearance: checkbox;">
+                                                <span>Kuliner & F&B</span>
+                                            </label>
+                                            <label class="flex items-center gap-2.5 text-xs text-slate-200 cursor-pointer select-none py-1 px-1.5 rounded-lg hover:bg-slate-900 transition">
+                                                <input type="checkbox" name="rubikKategoriUsaha" value="Fashion, Konveksi & Kriya" onchange="updateRubikKategoriSummary()" class="rubik-cat-checkbox w-4 h-4 shrink-0 accent-amber-500 cursor-pointer" style="-webkit-appearance: checkbox; appearance: checkbox;">
+                                                <span>Fashion, Konveksi & Kriya</span>
+                                            </label>
+                                            <label class="flex items-center gap-2.5 text-xs text-slate-200 cursor-pointer select-none py-1 px-1.5 rounded-lg hover:bg-slate-900 transition">
+                                                <input type="checkbox" name="rubikKategoriUsaha" value="Jasa Profesional & Konsultan" onchange="updateRubikKategoriSummary()" class="rubik-cat-checkbox w-4 h-4 shrink-0 accent-amber-500 cursor-pointer" style="-webkit-appearance: checkbox; appearance: checkbox;">
+                                                <span>Jasa Profesional & Konsultan</span>
+                                            </label>
+                                            <label class="flex items-center gap-2.5 text-xs text-slate-200 cursor-pointer select-none py-1 px-1.5 rounded-lg hover:bg-slate-900 transition">
+                                                <input type="checkbox" name="rubikKategoriUsaha" value="Kreatif, Media & Digital" onchange="updateRubikKategoriSummary()" class="rubik-cat-checkbox w-4 h-4 shrink-0 accent-amber-500 cursor-pointer" style="-webkit-appearance: checkbox; appearance: checkbox;">
+                                                <span>Kreatif, Media & Digital</span>
+                                            </label>
+                                            <label class="flex items-center gap-2.5 text-xs text-slate-200 cursor-pointer select-none py-1 px-1.5 rounded-lg hover:bg-slate-900 transition">
+                                                <input type="checkbox" name="rubikKategoriUsaha" value="Properti, Konstruksi & Interior" onchange="updateRubikKategoriSummary()" class="rubik-cat-checkbox w-4 h-4 shrink-0 accent-amber-500 cursor-pointer" style="-webkit-appearance: checkbox; appearance: checkbox;">
+                                                <span>Properti, Konstruksi & Interior</span>
+                                            </label>
+                                            <label class="flex items-center gap-2.5 text-xs text-slate-200 cursor-pointer select-none py-1 px-1.5 rounded-lg hover:bg-slate-900 transition">
+                                                <input type="checkbox" name="rubikKategoriUsaha" value="Otomotif & Bengkel" onchange="updateRubikKategoriSummary()" class="rubik-cat-checkbox w-4 h-4 shrink-0 accent-amber-500 cursor-pointer" style="-webkit-appearance: checkbox; appearance: checkbox;">
+                                                <span>Otomotif & Bengkel</span>
+                                            </label>
+                                            <label class="flex items-center gap-2.5 text-xs text-slate-200 cursor-pointer select-none py-1 px-1.5 rounded-lg hover:bg-slate-900 transition">
+                                                <input type="checkbox" name="rubikKategoriUsaha" value="Kesehatan, Kecantikan & Kebugaran" onchange="updateRubikKategoriSummary()" class="rubik-cat-checkbox w-4 h-4 shrink-0 accent-amber-500 cursor-pointer" style="-webkit-appearance: checkbox; appearance: checkbox;">
+                                                <span>Kesehatan, Kecantikan & Kebugaran</span>
+                                            </label>
+                                            <label class="flex items-center gap-2.5 text-xs text-slate-200 cursor-pointer select-none py-1 px-1.5 rounded-lg hover:bg-slate-900 transition">
+                                                <input type="checkbox" name="rubikKategoriUsaha" value="Pendidikan, Pelatihan & Kursus" onchange="updateRubikKategoriSummary()" class="rubik-cat-checkbox w-4 h-4 shrink-0 accent-amber-500 cursor-pointer" style="-webkit-appearance: checkbox; appearance: checkbox;">
+                                                <span>Pendidikan, Pelatihan & Kursus</span>
+                                            </label>
+                                            <label class="flex items-center gap-2.5 text-xs text-slate-200 cursor-pointer select-none py-1 px-1.5 rounded-lg hover:bg-slate-900 transition">
+                                                <input type="checkbox" name="rubikKategoriUsaha" value="Agribisnis, Pertanian & Peternakan" onchange="updateRubikKategoriSummary()" class="rubik-cat-checkbox w-4 h-4 shrink-0 accent-amber-500 cursor-pointer" style="-webkit-appearance: checkbox; appearance: checkbox;">
+                                                <span>Agribisnis, Pertanian & Peternakan</span>
+                                            </label>
+                                            <label class="flex items-center gap-2.5 text-xs text-slate-200 cursor-pointer select-none py-1 px-1.5 rounded-lg hover:bg-slate-900 transition">
+                                                <input type="checkbox" name="rubikKategoriUsaha" value="Perdagangan Umum & Retail" onchange="updateRubikKategoriSummary()" class="rubik-cat-checkbox w-4 h-4 shrink-0 accent-amber-500 cursor-pointer" style="-webkit-appearance: checkbox; appearance: checkbox;">
+                                                <span>Perdagangan Umum & Retail</span>
+                                            </label>
+                                            <label class="flex items-center gap-2.5 text-xs text-slate-200 cursor-pointer select-none py-1 px-1.5 rounded-lg hover:bg-slate-900 transition">
+                                                <input type="checkbox" name="rubikKategoriUsaha" value="Lainnya" onchange="updateRubikKategoriSummary()" class="rubik-cat-checkbox w-4 h-4 shrink-0 accent-amber-500 cursor-pointer" style="-webkit-appearance: checkbox; appearance: checkbox;">
+                                                <span>Lainnya</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <p class="text-[11px] text-slate-400 mt-1">Klik tombol di atas untuk membuka/menutup pilihan, lalu centang bidang usaha (boleh lebih dari satu).</p>
                                 </div>
 
                                 <div>
@@ -749,7 +790,7 @@
             <img src="assets/images/card_latar.png" class="absolute inset-0 w-full h-full object-cover z-0 pointer-events-none" alt="Card Latar">
 
             <!-- Layer Foto Depan -->
-            <div class="absolute inset-0 flex items-center justify-center overflow-hidden z-10">
+            <div class="absolute inset-0 flex items-center justify-center overflow-hidden z-10 p-4">
                 <img id="cardFotoFront" class="max-w-full max-h-full object-contain pointer-events-none transition-transform duration-75" style="transform-origin: center center;" src="https://placehold.co/638x1004/0e0e0e/cccccc?text=Foto" alt="Foto Depan">
             </div>
 
@@ -955,6 +996,32 @@
                 el.classList.remove('bg-red-500/10', 'border-red-500/80', 'ring-1', 'ring-red-500/50');
             });
         };
+
+        window.toggleRubikKategoriDropdown = function() {
+            const group = document.getElementById('rubikKategoriGroup');
+            const chevron = document.getElementById('iconRubikKategoriChevron');
+            if (!group) return;
+            group.classList.toggle('hidden');
+            if (chevron) {
+                chevron.classList.toggle('rotate-180', !group.classList.contains('hidden'));
+            }
+        };
+
+        window.updateRubikKategoriSummary = function() {
+            const summaryEl = document.getElementById('rubikKategoriSummary');
+            if (!summaryEl) return;
+            const checked = Array.from(
+                document.querySelectorAll('#rubikKategoriGroup input[name="rubikKategoriUsaha"]:checked')
+            ).map((el) => el.value);
+
+            if (checked.length === 0) {
+                summaryEl.textContent = '-- Pilih Kategori Usaha (Bisa Lebih dari 1) --';
+                summaryEl.className = 'text-slate-300 truncate';
+            } else {
+                summaryEl.textContent = checked.join(', ');
+                summaryEl.className = 'text-gold-300 font-medium truncate';
+            }
+        };
     </script>
 
     <!-- UI HANDLERS & INTERACTIVE SLIDERS script -->
@@ -975,22 +1042,37 @@
             const rotateBack = document.getElementById('rotateBack');
             const btnResetBackPhoto = document.getElementById('btnResetBackPhoto');
 
+            window.applyPhotoTransformToElement = function(imgEl, photoState = {}) {
+                if (!imgEl) return;
+                const scale = typeof photoState.scale !== "undefined" ? Number(photoState.scale) : 1;
+                const posX = typeof photoState.posX !== "undefined" ? Number(photoState.posX) : 0;
+                const posY = typeof photoState.posY !== "undefined" ? Number(photoState.posY) : 0;
+                const rotate = typeof photoState.rotate !== "undefined" ? Number(photoState.rotate) : 0;
+                const flipX = photoState.flipX ? -1 : 1;
+
+                imgEl.style.objectFit = "contain";
+                imgEl.style.transformOrigin = "center center";
+                imgEl.style.transform = `translate(${posX}px, ${posY}px) scale(${scale * flipX}, ${scale}) rotate(${rotate}deg)`;
+            };
+
             function applyFrontTransform() {
                 if (!prevFotoFront) return;
-                const z = zoomFront ? zoomFront.value : 1;
-                const x = posXFront ? posXFront.value : 0;
-                const y = posYFront ? posYFront.value : 0;
-                const r = rotateFront ? rotateFront.value : 0;
-                prevFotoFront.style.transform = `translate(${x}px, ${y}px) scale(${z}) rotate(${r}deg)`;
+                window.applyPhotoTransformToElement(prevFotoFront, {
+                    scale: zoomFront ? zoomFront.value : 1,
+                    posX: posXFront ? posXFront.value : 0,
+                    posY: posYFront ? posYFront.value : 0,
+                    rotate: rotateFront ? rotateFront.value : 0
+                });
             }
 
             function applyBackTransform() {
                 if (!prevFotoBack) return;
-                const z = zoomBack ? zoomBack.value : 1;
-                const x = posXBack ? posXBack.value : 0;
-                const y = posYBack ? posYBack.value : 0;
-                const r = rotateBack ? rotateBack.value : 0;
-                prevFotoBack.style.transform = `translate(${x}px, ${y}px) scale(${z}) rotate(${r}deg)`;
+                window.applyPhotoTransformToElement(prevFotoBack, {
+                    scale: zoomBack ? zoomBack.value : 1,
+                    posX: posXBack ? posXBack.value : 0,
+                    posY: posYBack ? posYBack.value : 0,
+                    rotate: rotateBack ? rotateBack.value : 0
+                });
             }
 
             [zoomFront, posXFront, posYFront, rotateFront].forEach(slider => {
@@ -1257,6 +1339,7 @@ document.getElementById("prevFotoFront")?.classList.remove("hidden");
                 jenisUsaha: document.getElementById('regJenisUsaha')?.value || '',
                 keahlian: document.getElementById('regKeahlian')?.value || '',
                 statusLainnyaText: document.getElementById('regStatusLainnyaText')?.value || '',
+                ...(typeof window.getRubikFormPayload === 'function' ? window.getRubikFormPayload() : {}),
                 updatedAt: new Date().toISOString()
             };
 
@@ -1433,6 +1516,7 @@ document.getElementById("prevFotoFront")?.classList.remove("hidden");
             jenisUsaha: document.getElementById('regJenisUsaha')?.value || '',
             keahlian: document.getElementById('regKeahlian')?.value || '',
             statusLainnyaText: document.getElementById('regStatusLainnyaText')?.value || '',
+            ...(typeof window.getRubikFormPayload === 'function' ? window.getRubikFormPayload() : {}),
             foto: base64Photo,
             createdAt: new Date().toISOString()
         };
@@ -1541,16 +1625,26 @@ function renderIDCard(data) {
 
     if (cardFotoFront) {
         cardFotoFront.src = photoSrc;
-        cardFotoFront.style.objectFit = 'contain';
-        cardFotoFront.style.transformOrigin = 'center center';
-        cardFotoFront.style.transform = `translate(${xFront}px, ${yFront}px) scale(${zFront}) rotate(${rFront}deg)`;
+        if (typeof window.applyPhotoTransformToElement === "function") {
+            window.applyPhotoTransformToElement(cardFotoFront, {
+                scale: zFront,
+                posX: xFront,
+                posY: yFront,
+                rotate: rFront
+            });
+        }
     }
 
     if (cardFotoBack) {
         cardFotoBack.src = photoSrc;
-        cardFotoBack.style.objectFit = 'contain';
-        cardFotoBack.style.transformOrigin = 'center center';
-        cardFotoBack.style.transform = `translate(${xBack}px, ${yBack}px) scale(${zBack}) rotate(${rBack}deg)`;
+        if (typeof window.applyPhotoTransformToElement === "function") {
+            window.applyPhotoTransformToElement(cardFotoBack, {
+                scale: zBack,
+                posX: xBack,
+                posY: yBack,
+                rotate: rBack
+            });
+        }
     }
 
     // 3. Tampilkan Teks Nama & Nomor Anggota
@@ -1572,36 +1666,37 @@ function renderIDCard(data) {
         document.getElementById('cardNoAnggotaBack').innerText = nomorAnggotaLengkap.toLowerCase();
     }
 
-    // 4. Render QR Code (Menggunakan setTimeout agar DOM sudah siap & terhindar dari blok abu-abu)
+    // 4. Render QR Code (Mode canvas agar stabil di DOM & html2canvas)
     setTimeout(() => {
-        const qrContainer = document.getElementById('cardQrcodeBack');
-        if (qrContainer) {
-            qrContainer.innerHTML = '';
-            const qrDataUrl = `https://ikasebelas98.github.io/?alumni=${encodeURIComponent(nomorAnggotaLengkap)}`;
+        const qrDataUrl = `https://ikasebelas98.github.io/?alumni=${encodeURIComponent(nomorAnggotaLengkap)}`;
+        const QRClass = window.QRCodeStyling || (typeof QRCodeStyling !== 'undefined' ? QRCodeStyling : null);
 
-            const QRClass = window.QRCodeStyling || (typeof QRCodeStyling !== 'undefined' ? QRCodeStyling : null);
+        [document.getElementById('cardQrcodeBack'), document.getElementById('prevQrcodeBack')].forEach((qrContainer) => {
+            if (!qrContainer) return;
+            qrContainer.innerHTML = '';
 
             if (QRClass) {
                 try {
                     const qrCode = new QRClass({
                         width: 130,
                         height: 130,
-                        type: "svg",
+                        type: "canvas",
                         data: qrDataUrl,
-                        dotsOptions: { color: "#666666", type: "dots" },
+                        dotsOptions: { color: "#ffffff", type: "dots" },
                         backgroundOptions: { color: "transparent" },
-                        cornersSquareOptions: { color: "#434343", type: "extra-rounded" },
-                        cornersDotOptions: { color: "#434343", type: "dot" }
+                        cornersSquareOptions: { color: "#ffffff", type: "extra-rounded" },
+                        cornersDotOptions: { color: "#ffffff", type: "dot" }
                     });
                     qrCode.append(qrContainer);
                 } catch (err) {
-                    qrContainer.innerHTML = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=130x130&data=${encodeURIComponent(qrDataUrl)}&color=434343" class="w-full h-full object-contain" alt="QR Code" />`;
+                    console.error("Gagal render QRCodeStyling:", err);
+                    qrContainer.innerHTML = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=130x130&data=${encodeURIComponent(qrDataUrl)}&color=ffffff&bgcolor=0f172a" class="w-full h-full object-contain" alt="QR Code" />`;
                 }
             } else {
-                qrContainer.innerHTML = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=130x130&data=${encodeURIComponent(qrDataUrl)}&color=434343" class="w-full h-full object-contain" alt="QR Code" />`;
+                qrContainer.innerHTML = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=130x130&data=${encodeURIComponent(qrDataUrl)}&color=ffffff&bgcolor=0f172a" class="w-full h-full object-contain" alt="QR Code" />`;
             }
-        }
-    }, 100);
+        });
+    }, 150);
 }
 
     // --- FUNGSI PRINT ---
@@ -1771,6 +1866,10 @@ async function loadAlumniDataForEdit(uid) {
                 btnSubmit.innerHTML = `<i class="fa-solid fa-floppy-disk"></i> <span>Simpan Perubahan Profile & ID Card</span>`;
             }
 
+            if (typeof window.populateRubikFormData === 'function') {
+                window.populateRubikFormData(data);
+            }
+
             window.updateCardPreview();
         }
     } catch (err) {
@@ -1929,7 +2028,11 @@ async function loadAlumniDataForEdit(uid) {
             });
         }
 
-        const kategori = document.getElementById("rubikKategoriUsaha")?.value.trim() || "";
+        const selectedCategories = Array.from(
+            document.querySelectorAll('#rubikKategoriGroup input[name="rubikKategoriUsaha"]:checked')
+        ).map((el) => el.value);
+
+        const kategori = selectedCategories.join(", ");
         const namaPerusahaan = document.getElementById("rubikNamaPerusahaan")?.value.trim() || "";
         const waBisnis = document.getElementById("rubikWaBisnis")?.value.trim() || "";
         const alamatUsaha = document.getElementById("rubikAlamatUsaha")?.value.trim() || "";
@@ -1964,9 +2067,14 @@ async function loadAlumniDataForEdit(uid) {
     window.populateRubikFormData = function(data) {
         if (!data) return;
 
-        if (document.getElementById("rubikKategoriUsaha")) {
-            document.getElementById("rubikKategoriUsaha").value = data.rubikKategoriUsaha || "";
-        }
+        const rawCat = data.rubikKategoriUsahaList || data.rubikKategoriUsaha || "";
+        const catArray = Array.isArray(rawCat)
+            ? rawCat
+            : String(rawCat).split(",").map((s) => s.trim()).filter(Boolean);
+
+        document.querySelectorAll('#rubikKategoriGroup input[name="rubikKategoriUsaha"]').forEach((cb) => {
+            cb.checked = catArray.includes(cb.value);
+        });
         if (document.getElementById("rubikNamaPerusahaan")) {
             document.getElementById("rubikNamaPerusahaan").value = data.rubikNamaPerusahaan || "";
         }
@@ -2004,6 +2112,9 @@ async function loadAlumniDataForEdit(uid) {
                     };
                 }
             });
+        }
+        if (typeof window.updateRubikKategoriSummary === "function") {
+            window.updateRubikKategoriSummary();
         }
         renderRubikGaleriEditor();
     };

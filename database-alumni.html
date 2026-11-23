@@ -423,10 +423,6 @@
         window.firebaseSignOut = signOut;
         window.firebaseAuth = auth;
 
-        // Deteksi Pengguna Login & Penyelarasan Navbar Terpusat via navbar.js
-        window.firebaseSignOut = signOut;
-        window.firebaseAuth = auth;
-
         // Flag penanda status inisialisasi auth untuk mencegah redirect prematur
         let authCheckCompleted = false;
 
@@ -529,6 +525,14 @@ async function loadDatabaseAlumni() {
         });
 
         renderAlumniGrid(allAlumniData);
+
+        const targetUid = (new URLSearchParams(window.location.search).get("uid") || "").trim();
+        if (targetUid) {
+            const matched = allAlumniData.find(a => a.id === targetUid || a.uid === targetUid);
+            if (matched && typeof window.openBioModal === "function") {
+                window.openBioModal(matched);
+            }
+        }
     } catch (err) {
         console.error("Gagal memuat database:", err);
         gridEl.innerHTML = `<div class="col-span-full text-center py-8 text-red-400">Gagal memuat data database alumni.</div>`;
