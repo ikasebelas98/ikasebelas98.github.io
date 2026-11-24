@@ -412,9 +412,14 @@
 
                 const infoEl = document.createElement("div");
                 infoEl.className = "space-y-1 text-left";
+                const catParts = entry.kategori.split(",").map((s) => s.trim()).filter(Boolean);
+                const catDisplayText = catParts.length > 1
+                    ? `${catParts[0]} +${catParts.length - 1}`
+                    : (catParts[0] || entry.kategori);
+
                 infoEl.innerHTML = `
                     <div class="flex items-center justify-between gap-2">
-                        <span class="text-[10px] font-semibold uppercase tracking-wider text-amber-400 truncate">${entry.kategori}</span>
+                        <span title="${entry.kategori}" class="text-[10px] font-semibold uppercase tracking-wider text-amber-400 truncate">${catDisplayText}</span>
                         <span class="text-[10px] font-bold text-slate-400 shrink-0">${entry.namaPanggilan}</span>
                     </div>
                     <h3 class="font-bold text-white text-sm truncate">${entry.namaUsaha}</h3>
@@ -427,21 +432,50 @@
             });
         }
 
+        function parseCategoriesList(rawKategori) {
+            if (Array.isArray(rawKategori)) {
+                return rawKategori.map((c) => String(c).trim().toLowerCase()).filter(Boolean);
+            }
+            return String(rawKategori || "")
+                .split(",")
+                .map((c) => c.trim().toLowerCase())
+                .filter(Boolean);
+        }
+
+        function buildSearchTerms(rawKeyword) {
+            const kw = (rawKeyword || "").trim().toLowerCase();
+            if (!kw) return [];
+            const terms = new Set([kw]);
+            if (kw.includes("desain")) terms.add(kw.replace(/desain/g, "design"));
+            if (kw.includes("design")) terms.add(kw.replace(/design/g, "desain"));
+            return Array.from(terms);
+        }
+
         function applyRubikFilters() {
-            const keyword = (document.getElementById("rubikSearchInput")?.value || "").trim().toLowerCase();
-            const category = (document.getElementById("rubikCategoryFilter")?.value || "").trim();
+            const rawKeyword = (document.getElementById("rubikSearchInput")?.value || "").trim().toLowerCase();
+            const category = (document.getElementById("rubikCategoryFilter")?.value || "").trim().toLowerCase();
+            const searchTerms = buildSearchTerms(rawKeyword);
 
             const filtered = allRubikEntries.filter((entry) => {
-                const matchCat = category === "" || entry.kategori === category;
+                const entryCats = parseCategoriesList(entry.kategori);
+                const matchCat =
+                    category === "" ||
+                    entryCats.includes(category) ||
+                    entry.kategori.toLowerCase().includes(category);
+
                 const captionHaystack = entry.photos.map((p) => p.caption).join(" ").toLowerCase();
+                const fullHaystack = [
+                    entry.namaUsaha,
+                    entry.namaPanggilan,
+                    entry.namaLengkap,
+                    entry.kategori,
+                    entry.narasi,
+                    captionHaystack
+                ].join(" ").toLowerCase();
+
                 const matchKw =
-                    keyword === "" ||
-                    entry.namaUsaha.toLowerCase().includes(keyword) ||
-                    entry.namaPanggilan.toLowerCase().includes(keyword) ||
-                    entry.namaLengkap.toLowerCase().includes(keyword) ||
-                    entry.kategori.toLowerCase().includes(keyword) ||
-                    entry.narasi.toLowerCase().includes(keyword) ||
-                    captionHaystack.includes(keyword);
+                    searchTerms.length === 0 ||
+                    searchTerms.some((term) => fullHaystack.includes(term));
 
                 return matchCat && matchKw;
             });

@@ -778,7 +778,124 @@
     }
 
     // Tampilkan Pop-up Ulang Tahun Hari H
-    function showBdayPopup(alumni) {
+    let currentBdayCardBlob = null;
+
+    function formatTanggalHariIniID() {
+        const now = new Date();
+        const tgl = String(now.getDate()).padStart(2, "0");
+        const bulan = now.toLocaleDateString("id-ID", { month: "long" }).toUpperCase();
+        const tahun = now.getFullYear();
+        return `${tgl} ${bulan} ${tahun}`;
+    }
+
+    function loadImage(src, useCors = true) {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            if (useCors) img.crossOrigin = "anonymous";
+            img.onload = () => resolve(img);
+            img.onerror = (err) => reject(err);
+            img.src = src;
+        });
+    }
+
+    async function generateBirthdayCardBlob(alumni, namaPanggilan) {
+        const templateImg = await loadImage("assets/images/temp-ultah.webp", true);
+        const width = templateImg.naturalWidth || 800;
+        const height = templateImg.naturalHeight || 1400;
+
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+
+        // Isi latar belakang agar bagian luar bingkai tidak hitam/transparan saat dikirim
+        ctx.fillStyle = "#d4d8e8";
+        ctx.fillRect(0, 0, width, height);
+
+        // 1. Gambar foto anggota memenuhi area frame tengah
+        const fotoUrl = alumni.foto || "assets/images/tumb 06 login.webp";
+        let avatarImg = null;
+        try {
+            avatarImg = await loadImage(fotoUrl, true);
+        } catch {
+            try {
+                avatarImg = await loadImage("assets/images/tumb 06 login.webp", true);
+            } catch {
+                avatarImg = null;
+            }
+        }
+
+        const photoX = width * 0.14;
+        const photoY = height * 0.33;
+        const photoW = width * 0.72;
+        const photoH = height * 0.355;
+
+        if (avatarImg) {
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(photoX, photoY, photoW, photoH);
+            ctx.clip();
+
+            const imgRatio = avatarImg.naturalWidth / avatarImg.naturalHeight;
+            const boxRatio = photoW / photoH;
+            let drawW, drawH, drawX, drawY;
+            if (imgRatio > boxRatio) {
+                drawH = photoH;
+                drawW = photoH * imgRatio;
+                drawX = photoX - (drawW - photoW) / 2;
+                drawY = photoY;
+            } else {
+                drawW = photoW;
+                drawH = photoW / imgRatio;
+                drawX = photoX;
+                drawY = photoY - (drawH - photoH) / 2;
+            }
+            ctx.drawImage(avatarImg, drawX, drawY, drawW, drawH);
+            ctx.restore();
+        }
+
+        // 2. Overlay template masking
+        ctx.drawImage(templateImg, 0, 0, width, height);
+
+        // 3. Teks nama panggilan & tanggal di bagian bawah
+        ctx.save();
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+
+        const namaLabel = `-${namaPanggilan}-`;
+        const namaFontSize = Math.max(24, Math.round(width * 0.052));
+        ctx.font = `700 ${namaFontSize}px 'Inter', sans-serif`;
+        ctx.fillStyle = "#9a7432";
+        ctx.fillText(namaLabel, width * 0.5, height * 0.715);
+
+        const tglFontSize = Math.max(16, Math.round(width * 0.028));
+        ctx.font = `600 ${tglFontSize}px 'Inter', sans-serif`;
+        ctx.fillStyle = "#8f7342";
+        ctx.fillText(formatTanggalHariIniID(), width * 0.5, height * 0.748);
+        ctx.restore();
+
+        return new Promise((resolve) => {
+            canvas.toBlob((blob) => resolve(blob), "image/png");
+        });
+    }
+
+    async function copyImageBlobToClipboard(blob) {
+        if (!blob || !navigator.clipboard || typeof ClipboardItem === "undefined") {
+            return false;
+        }
+        try {
+            await navigator.clipboard.write([
+                new ClipboardItem({ "image/png": blob })
+            ]);
+            return true;
+        } catch (err) {
+            console.warn("Gagal menyalin gambar ke clipboard:", err);
+            return false;
+        }
+    }
+
+    // Tampilkan Pop-up Ulang Tahun Hari H
+    async function showBdayPopup(alumni) {
         const popup = document.getElementById("bdayPopupModal");
         if (!popup) return;
 
@@ -794,12 +911,41 @@
         document.getElementById("bdayPopupNama").innerText = alumni.namaLengkap || namaPanggilan;
         document.getElementById("bdayPopupKelas").innerText = alumni.kelas || "11.98";
 
-        const waText = encodeURIComponent(`Wilujeng Tepang Taun ${namaPanggilan}! 🎂 Panjang umur, sehat, sukses, tur salawasna aya dina lindungan Allah SWT. Aamiin. Salam hangat ti Baraya IKA 11.98! 🙌`);
-        document.getElementById("bdayBtnWa").href = `https://wa.me/${formattedWa}?text=${waText}`;
+        const waText = encodeURIComponent(`Wilujeng Tepang Taun ${namaPanggilan}! 🎂 Panjang umur, sehat, sukses, tur salawasna aya dina lindungan Allah SWT. Aamiin. Salam hangat ti Baraya IKA 11.98! 🎉`);
+        const btnWa = document.getElementById("bdayBtnWa");
+        btnWa.href = `https://wa.me/${formattedWa}?text=${waText}`;
+
+        const previewEl = document.getElementById("bdayCardPreview");
+        const statusEl = document.getElementById("bdayCopyStatus");
+        currentBdayCardBlob = null;
+        if (statusEl) statusEl.innerText = "Menyiapkan gambar ucapan...";
 
         // Ubah dari hidden menjadi flex agar muncul dengan benar
         popup.classList.remove("hidden");
         popup.classList.add("flex");
+
+        try {
+            currentBdayCardBlob = await generateBirthdayCardBlob(alumni, namaPanggilan);
+            if (currentBdayCardBlob && previewEl) {
+                const url = URL.createObjectURL(currentBdayCardBlob);
+                previewEl.src = url;
+            }
+            if (statusEl) statusEl.innerText = "Gambar siap disalin saat klik kirim WA.";
+        } catch (err) {
+            console.error("Gagal membuat kartu ultah:", err);
+            if (statusEl) statusEl.innerText = "Gambar gagal dibuat otomatis.";
+        }
+
+        btnWa.onclick = async () => {
+            if (currentBdayCardBlob) {
+                const copied = await copyImageBlobToClipboard(currentBdayCardBlob);
+                if (statusEl) {
+                    statusEl.innerText = copied
+                        ? "Gambar tercopy ke clipboard! Silakan paste (Ctrl+V) di chat WhatsApp."
+                        : "Clipboard tidak didukung browser ini, teks WA tetap terbuka.";
+                }
+            }
+        };
     }
 
     // Sembunyikan Pop-up secara mutlak
@@ -858,19 +1004,20 @@
             <i class="fa-solid fa-xmark"></i>
         </button>
 
-        <!-- Icon / Ilustrasi Kado / Kue -->
-        <div class="w-20 h-20 mx-auto rounded-full bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 text-3xl shadow-lg shadow-amber-500/10">
-            <i class="fa-solid fa-cake-candles animate-pulse"></i>
-        </div>
-
-        <!-- Judul & Teks Ucapan -->
+        <!-- Judul Ucapan -->
         <div class="space-y-1">
             <h3 id="bdayPopupTitle" class="text-lg font-extrabold text-amber-400 font-heading uppercase tracking-wide">
                 Wilujeng Tepang Taun! 🎂
             </h3>
-            <p id="bdayPopupMessage" class="text-xs text-slate-300 leading-relaxed">
-                Hari ini baraya kita sedang merayakan ulang tahun!
-            </p>
+        </div>
+
+        <!-- Preview Kartu Ucapan Ultah -->
+        <div class="flex flex-col items-center justify-center">
+            <img id="bdayCardPreview"
+                 src="assets/images/temp-ultah.webp"
+                 alt="Kartu Ucapan Ulang Tahun"
+                 class="max-h-64 w-auto rounded-2xl border border-amber-500/40 shadow-lg object-contain bg-slate-900/60" />
+            <span id="bdayCopyStatus" class="text-[11px] text-amber-300 mt-1.5 min-h-[16px]"></span>
         </div>
 
         <!-- Detail Foto & Nama Alumni -->

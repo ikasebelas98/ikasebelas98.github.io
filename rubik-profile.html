@@ -72,9 +72,7 @@
                 <span>Kembali ke Direktori Rubik</span>
             </a>
 
-            <span id="profileCategoryBadge" class="hidden text-[11px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-full bg-amber-500/15 border border-amber-500/40 text-amber-400">
-                Kategori Usaha
-            </span>
+            <div id="profileCategoryBadge" class="hidden flex flex-wrap justify-end gap-1.5 max-w-xl"></div>
         </div>
 
         <!-- Loading State -->
@@ -359,8 +357,11 @@
 
             const catBadge = document.getElementById("profileCategoryBadge");
             if (catBadge) {
-                catBadge.textContent = kategori;
-                catBadge.classList.remove("hidden");
+                const catList = kategori.split(",").map((c) => c.trim()).filter(Boolean);
+                catBadge.innerHTML = catList
+                    .map((c) => `<span class="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-amber-500/15 border border-amber-500/40 text-amber-400">${c}</span>`)
+                    .join("");
+                catBadge.classList.toggle("hidden", catList.length === 0);
             }
 
             document.getElementById("profNamaPanggilan").textContent = namaPanggilan;
