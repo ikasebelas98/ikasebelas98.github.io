@@ -809,7 +809,7 @@
         const ctx = canvas.getContext("2d");
 
         // Isi latar belakang agar bagian luar bingkai tidak hitam/transparan saat dikirim
-        ctx.fillStyle = "#d4d8e8";
+        ctx.fillStyle = "#d8ba63";
         ctx.fillRect(0, 0, width, height);
 
         // 1. Gambar foto anggota memenuhi area frame tengah
@@ -865,7 +865,7 @@
         const namaLabel = `-${namaPanggilan}-`;
         const namaFontSize = Math.max(24, Math.round(width * 0.052));
         ctx.font = `700 ${namaFontSize}px 'Inter', sans-serif`;
-        ctx.fillStyle = "#9a7432";
+        ctx.fillStyle = "#d3d7e7";
         ctx.fillText(namaLabel, width * 0.5, height * 0.715);
 
         const tglFontSize = Math.max(16, Math.round(width * 0.028));
