@@ -51,7 +51,6 @@
             background: rgba(234, 179, 8, 0.95);
             border-color: #fbbf24;
             color: #0f172a;
-            transform: scale(1.06);
         }
     </style>
 </head>
@@ -277,6 +276,7 @@
                         const photos = buildPhotosForEntry(data);
                         const namaPanggilan = (data.namaPanggilan || data.namaLengkap || "ALUMNI").toUpperCase();
                         const namaUsaha = (data.rubikNamaPerusahaan || data.namaUsaha || data.keahlian || namaPanggilan || "Usaha Alumni").trim();
+                        const jenisUsaha = (data.jenisUsaha || "").trim();
                         const kategori = (data.rubikKategoriUsaha || data.jenisUsaha || (data.keahlian ? "Keahlian & Jasa" : "Lainnya")).trim();
                         const narasi = (data.rubikNarasiUsaha || data.keahlian || "").trim();
 
@@ -286,6 +286,7 @@
                             namaPanggilan,
                             namaLengkap: data.namaLengkap || "",
                             namaUsaha,
+                            jenisUsaha,
                             kategori,
                             narasi,
                             photos,
@@ -412,14 +413,11 @@
 
                 const infoEl = document.createElement("div");
                 infoEl.className = "space-y-1 text-left";
-                const catParts = entry.kategori.split(",").map((s) => s.trim()).filter(Boolean);
-                const catDisplayText = catParts.length > 1
-                    ? `${catParts[0]} +${catParts.length - 1}`
-                    : (catParts[0] || entry.kategori);
+                const topLabelText = entry.jenisUsaha || entry.kategori || "Ruang Bisnis Alumni";
 
                 infoEl.innerHTML = `
                     <div class="flex items-center justify-between gap-2">
-                        <span title="${entry.kategori}" class="text-[10px] font-semibold uppercase tracking-wider text-amber-400 truncate">${catDisplayText}</span>
+                        <span title="${topLabelText}" class="text-[10px] font-semibold uppercase tracking-wider text-amber-400 truncate">${topLabelText}</span>
                         <span class="text-[10px] font-bold text-slate-400 shrink-0">${entry.namaPanggilan}</span>
                     </div>
                     <h3 class="font-bold text-white text-sm truncate">${entry.namaUsaha}</h3>
@@ -466,6 +464,7 @@
                 const captionHaystack = entry.photos.map((p) => p.caption).join(" ").toLowerCase();
                 const fullHaystack = [
                     entry.namaUsaha,
+                    entry.jenisUsaha,
                     entry.namaPanggilan,
                     entry.namaLengkap,
                     entry.kategori,
