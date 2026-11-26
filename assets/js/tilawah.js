@@ -1501,13 +1501,20 @@ function renderColorWheel() {
         for (let i = 0; i < totalSlices; i++) {
             const juzNum = i + 1;
             let percent = 0;
-            const targetJuzCard =
+
+            const matchingCards = Array.from(document.querySelectorAll(`.juz-card-box[data-group="${g}"][data-juz="${juzNum}"]`));
+            const fallbackCard =
                 document.getElementById(`juz-btn-g${g}-${juzNum}`) ||
                 document.getElementById(`juz-btn-${juzNum}`);
+            const cardsToCheck = matchingCards.length > 0 ? matchingCards : (fallbackCard ? [fallbackCard] : []);
 
-            if (targetJuzCard) {
-                const totalSurahs = targetJuzCard.querySelectorAll(".surah-card").length;
-                const completedSurahs = targetJuzCard.querySelectorAll(".surah-card.completed").length;
+            if (cardsToCheck.length > 0) {
+                let totalSurahs = 0;
+                let completedSurahs = 0;
+                cardsToCheck.forEach((c) => {
+                    totalSurahs += c.querySelectorAll(".surah-card").length;
+                    completedSurahs += c.querySelectorAll(".surah-card.completed").length;
+                });
                 if (totalSurahs > 0) {
                     percent = Math.round((completedSurahs / totalSurahs) * 100);
                 }
@@ -2024,10 +2031,13 @@ window.renderMonthlyRecapTable = async function() {
                 recapData[name] = {};
             }
             if (!recapData[name][calendarWeek]) {
-                recapData[name][calendarWeek] = { juz: juzNum, suratSet: new Set() };
+                recapData[name][calendarWeek] = {};
+            }
+            if (!recapData[name][calendarWeek][juzNum]) {
+                recapData[name][calendarWeek][juzNum] = { juz: juzNum, suratSet: new Set() };
             }
             if (suratName) {
-                recapData[name][calendarWeek].suratSet.add(suratName);
+                recapData[name][calendarWeek][juzNum].suratSet.add(suratName);
             }
         });
 
@@ -2037,25 +2047,30 @@ window.renderMonthlyRecapTable = async function() {
 
             let weeksHtml = "";
             for (let w = 1; w <= 5; w++) {
-                const weekData = userCalendarReports[w];
+                const weekMap = userCalendarReports[w] || {};
+                const juzEntries = Object.values(weekMap).filter(item => item && item.suratSet.size > 0);
                 let badgeContent = `<span class="text-slate-600">-</span>`;
 
-                if (weekData && weekData.suratSet.size > 0) {
-                    const juzNum = weekData.juz;
-                    const totalSurahInJuz = QURAN_JUZ_DATA[juzNum] ? QURAN_JUZ_DATA[juzNum].length : 2;
-                    const completedCount = weekData.suratSet.size;
-                    const percent = Math.min(100, Math.round((completedCount / totalSurahInJuz) * 100));
+                if (juzEntries.length > 0) {
+                    const cardsHtml = juzEntries.map((weekData) => {
+                        const juzNum = weekData.juz;
+                        const totalSurahInJuz = QURAN_JUZ_DATA[juzNum] ? QURAN_JUZ_DATA[juzNum].length : 2;
+                        const completedCount = weekData.suratSet.size;
+                        const percent = Math.min(100, Math.round((completedCount / totalSurahInJuz) * 100));
 
-                    const badgeColor = percent >= 100
-                        ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
-                        : "bg-amber-500/20 text-amber-400 border-amber-500/30";
+                        const badgeColor = percent >= 100
+                            ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
+                            : "bg-amber-500/20 text-amber-400 border-amber-500/30";
 
-                    badgeContent = `
-                        <div class="inline-block px-2.5 py-1.5 rounded-lg text-[11px] font-bold border ${badgeColor} text-center leading-tight shadow-sm">
-                            <div class="text-amber-300">Juz ${juzNum}</div>
-                            <div class="text-[9px] opacity-90 mt-0.5">${completedCount} dari ${totalSurahInJuz} surat (${percent}%)</div>
-                        </div>
-                    `;
+                        return `
+                            <div class="inline-block px-2.5 py-1.5 rounded-lg text-[11px] font-bold border ${badgeColor} text-center leading-tight shadow-sm">
+                                <div class="text-amber-300">Juz ${juzNum}</div>
+                                <div class="text-[9px] opacity-90 mt-0.5">${completedCount} dari ${totalSurahInJuz} surat (${percent}%)</div>
+                            </div>
+                        `;
+                    }).join("");
+
+                    badgeContent = `<div class="flex flex-wrap items-center justify-center gap-1.5">${cardsHtml}</div>`;
                 }
 
                 weeksHtml += `<td class="p-3 text-center align-middle">${badgeContent}</td>`;
