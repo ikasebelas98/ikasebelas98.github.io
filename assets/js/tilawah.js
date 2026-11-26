@@ -55,7 +55,7 @@ const DEFAULT_START_ISO = "2026-11-23T00:00:00+07:00";
 const WIB_OFFSET_MS = 7 * 60 * 60 * 1000;
 const MS_PER_WEEK = 7 * 24 * 60 * 60 * 1000;
 const BASE_PEKAN_PROGRAM = 24;
-const JUZ_ROTATION_SHIFT = 2;
+const JUZ_ROTATION_SHIFT = 0;
 
 let cachedAuthUser = null;
 let cachedNamaPanggilan = "";
@@ -70,53 +70,32 @@ let isUserSuperAdmin = false;
 
 let officialStartDate = DEFAULT_START_ISO;
 let manualWeekOffset = 0;
+let manualSlotJuzOverrides = {};
 
-function getReportDocId(weekNum, juzNum, suratName, userId = "") {
-    const safeSurahId = String(suratName || "").replace(/[^a-zA-Z0-9]/g, "_");
-    const cleanUid = String(userId || "").trim().replace(/[^a-zA-Z0-9_-]/g, "_");
-    return cleanUid
-        ? `pekan_${weekNum}_juz_${juzNum}_surat_${safeSurahId}_user_${cleanUid}`
-        : `pekan_${weekNum}_juz_${juzNum}_surat_${safeSurahId}`;
-}
-
-window.switchTab = async function(tabId) {
-    const validTabs = ["tab1", "tab2", "tab3", "tab4"];
-    const targetTab = validTabs.includes(tabId) ? tabId : "tab2";
-    activeTabId = targetTab;
-
-    validTabs.forEach((id, idx) => {
-        const panel = document.getElementById(id);
-        const btn = document.getElementById(`btnTab${idx + 1}`);
-        const isSelected = id === targetTab;
-
-        if (panel) {
-            panel.classList.toggle("hidden", !isSelected);
-            panel.classList.toggle("block", isSelected);
-        }
-
-        if (btn) {
-            btn.classList.toggle("active", isSelected);
-        }
-    });
-
-    const period = getActivePeriodRange();
-    const currentWeek = period.elapsed + 1;
-
-    if (targetTab === "tab1") {
-        updateBadgeStatus();
-        renderTab1Participants();
-    } else if (targetTab === "tab2") {
-        renderTilawahTabs();
-        renderActiveJuzCards(cachedAuthUser);
-        await loadExistingReports(currentWeek);
-    } else if (targetTab === "tab3") {
-        renderColorWheel();
-        await updateWeeklyFastFinishers();
-    } else if (targetTab === "tab4") {
-        await updateYearlyStats();
-        await renderMonthlyRecapTable();
-    }
-};
+// Blueprint posisi slot Kelompok A (1..30) sesuai urutan acuan
+const INITIAL_GROUP_A_BLUEPRINT = [
+    { slotNumber: 3,  matchNames: ["NANA", "NANA OCIN"] },
+    { slotNumber: 4,  matchNames: ["DELA"] },
+    { slotNumber: 5,  matchNames: ["MPI"] },
+    { slotNumber: 8,  matchNames: ["AHER"] },
+    { slotNumber: 9,  matchNames: ["NOVI PIPI"] },
+    { slotNumber: 10, matchNames: ["NINA"] },
+    { slotNumber: 12, matchNames: ["GABY"] },
+    { slotNumber: 15, matchNames: ["RERE"] },
+    { slotNumber: 16, matchNames: ["ASEP"] },
+    { slotNumber: 17, matchNames: ["WAWAN"] },
+    { slotNumber: 19, matchNames: ["NITA"] },
+    { slotNumber: 20, matchNames: ["DINNY/DINOT", "DINNY", "DINOT"] },
+    { slotNumber: 21, matchNames: ["YEISSA"] },
+    { slotNumber: 22, matchNames: ["KARIM"] },
+    { slotNumber: 24, matchNames: ["UNIE"] },
+    { slotNumber: 25, matchNames: ["IRA"] },
+    { slotNumber: 26, matchNames: ["RINA/NA", "RINA", "NA"] },
+    { slotNumber: 27, matchNames: ["ACHY"] },
+    { slotNumber: 28, matchNames: ["REINY"] },
+    { slotNumber: 29, matchNames: ["LITA"] },
+    { slotNumber: 30, matchNames: ["IKE"] }
+];
 
 function getWibMondayStartMs(dateInput) {
     const baseMs = new Date(dateInput).getTime();
@@ -174,14 +153,139 @@ function getJuzRotationStep() {
     return Math.max(0, getElapsedWeeks() + JUZ_ROTATION_SHIFT);
 }
 
-function getJuzForIndex(index) {
+// Rotasi otomatis setiap Senin 00:00:00 WIB berdasarkan nomor slot dan pekan berjalan
+function getJuzForSlotAndWeek(slotNumber) {
+    const safeSlot = Math.max(1, Number(slotNumber) || 1);
+    const zeroBasedSlot = (safeSlot - 1) % 30;
     const rotationStep = getJuzRotationStep();
-    return ((index + rotationStep) % 30) + 1;
+    return ((zeroBasedSlot + rotationStep) % 30) + 1;
 }
 
-function getPekanProgramNumber() {
-    return BASE_PEKAN_PROGRAM + getElapsedWeeks();
+function getEffectiveJuzForSlot(slotNumber) {
+    const period = getActivePeriodRange();
+    const weekKey = `pekan_${period.elapsed + 1}`;
+    const specificKey = `${weekKey}_slot_${slotNumber}`;
+
+    const rawOverride = manualSlotJuzOverrides[specificKey];
+    const parsed = Number(rawOverride);
+    if (Number.isInteger(parsed) && parsed >= 1 && parsed <= 30) {
+        return parsed;
+    }
+
+    return getJuzForSlotAndWeek(slotNumber);
 }
+
+function isPowerEditorUser(user, role) {
+    const email = (user && user.email ? user.email : "").trim().toLowerCase();
+    const panggilan = (cachedNamaPanggilan || "").trim().toUpperCase();
+    const isAdminRole = role === "admin" || role === "super_admin" || isUserSuperAdmin;
+    const isNanaOcin = panggilan.includes("NANA OCIN");
+    const isAllowedEmail = email === "denzrusmana060f08@gmail.com";
+    return Boolean(isAdminRole || isNanaOcin || isAllowedEmail);
+}
+
+window.updateSlotJuzInline = async function(slotNumber, _arrayIndex, newJuzValue) {
+    if (!isPowerEditorUser(cachedAuthUser, currentUserRole)) {
+        alert("Akses ditolak. Pengubahan langsung Juz di tabel khusus Admin, Nana Ocin, dan Super Admin.");
+        return;
+    }
+
+    const juzNum = Number(newJuzValue);
+    if (!Number.isInteger(juzNum) || juzNum < 1 || juzNum > 30) return;
+
+    const period = getActivePeriodRange();
+    const specificKey = `pekan_${period.elapsed + 1}_slot_${slotNumber}`;
+
+    manualSlotJuzOverrides[specificKey] = juzNum;
+
+    try {
+        if (window.firebaseDb) {
+            const { doc, setDoc } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js");
+            await setDoc(doc(window.firebaseDb, "settings", "tilawah_config"), {
+                startDate: officialStartDate,
+                manualOffset: manualWeekOffset,
+                slotJuzOverrides: manualSlotJuzOverrides,
+                updatedAt: new Date().toISOString()
+            }, { merge: true });
+        }
+    } catch (err) {
+        console.error("Gagal menyimpan perubahan Juz langsung:", err);
+        alert("Gagal menyimpan perubahan Juz ke database.");
+        return;
+    }
+
+    renderTab1Participants();
+    renderActiveJuzCards(cachedAuthUser);
+    await loadExistingReports(period.elapsed + 1);
+    renderColorWheel();
+};
+
+function getSlotCodeByNumber(slotNumber) {
+    const num = Number(slotNumber);
+    if (!Number.isFinite(num) || num < 1) return "";
+    if (num <= 30) return `A-${num}`;
+    if (num <= 60) return `B-${num - 30}`;
+    const groupIdx = Math.floor((num - 1) / 30);
+    const codeNum = ((num - 1) % 30) + 1;
+    return `G${groupIdx + 1}-${codeNum}`;
+}
+
+function getSlotCodeByIndex(index) {
+    return getSlotCodeByNumber(Number(index) + 1);
+}
+
+function slotNumberToIndex(slotNumber) {
+    return Number(slotNumber) - 1;
+}
+
+function getReportDocId(weekNum, juzNum, suratName, userId = "", slotCode = "") {
+    const safeSurahId = String(suratName || "").replace(/[^a-zA-Z0-9]/g, "_");
+    const cleanUid = String(userId || "").trim().replace(/[^a-zA-Z0-9_-]/g, "_");
+    const cleanSlot = String(slotCode || "").trim().replace(/[^a-zA-Z0-9_-]/g, "_");
+    const parts = [`pekan_${weekNum}`, `juz_${juzNum}`, `surat_${safeSurahId}`];
+    if (cleanSlot) parts.push(`slot_${cleanSlot}`);
+    if (cleanUid) parts.push(`user_${cleanUid}`);
+    return parts.join("_");
+}
+
+window.switchTab = async function(tabId) {
+    const validTabs = ["tab1", "tab2", "tab3", "tab4"];
+    const targetTab = validTabs.includes(tabId) ? tabId : "tab2";
+    activeTabId = targetTab;
+
+    validTabs.forEach((id, idx) => {
+        const panel = document.getElementById(id);
+        const btn = document.getElementById(`btnTab${idx + 1}`);
+        const isSelected = id === targetTab;
+
+        if (panel) {
+            panel.classList.toggle("hidden", !isSelected);
+            panel.classList.toggle("block", isSelected);
+        }
+
+        if (btn) {
+            btn.classList.toggle("active", isSelected);
+        }
+    });
+
+    const period = getActivePeriodRange();
+    const currentWeek = period.elapsed + 1;
+
+    if (targetTab === "tab1") {
+        updateBadgeStatus();
+        renderTab1Participants();
+    } else if (targetTab === "tab2") {
+        renderTilawahTabs();
+        renderActiveJuzCards(cachedAuthUser);
+        await loadExistingReports(currentWeek);
+    } else if (targetTab === "tab3") {
+        renderColorWheel();
+        await updateWeeklyFastFinishers();
+    } else if (targetTab === "tab4") {
+        await updateYearlyStats();
+        await renderMonthlyRecapTable();
+    }
+};
 
 function getMonthWeekInfo(ms = Date.now()) {
     const d = new Date(ms);
@@ -221,20 +325,29 @@ function formatWibDateId(ms) {
 }
 
 function updateBadgeStatus() {
-    const badge = document.getElementById("currentWeekBadge");
-    if (!badge) return;
-
     const period = getActivePeriodRange();
     const startStr = formatWibDateId(period.startMs);
     const finishStr = formatWibDateId(period.finishMs);
 
-    badge.innerHTML = `
+    const badgeHtml = `
         <div class="leading-snug">
             <div>${period.mainLabel}</div>
             <div class="text-[11px] text-slate-300 font-normal">START: ${startStr}, PUKUL 00.00 WIB</div>
             <div class="text-[11px] text-slate-300 font-normal">FINISH: ${finishStr}, PUKUL 24.00 WIB</div>
         </div>
     `;
+
+    const badgeA = document.getElementById("currentWeekBadge");
+    if (badgeA) badgeA.innerHTML = badgeHtml;
+
+    const badgeB = document.getElementById("currentWeekBadgeB");
+    if (badgeB) badgeB.innerHTML = badgeHtml;
+
+    const subA = document.getElementById("groupASubtitle");
+    if (subA) subA.textContent = `Kode slot A-1 s.d. A-30 • ${period.mainLabel}`;
+
+    const subB = document.getElementById("groupBSubtitle");
+    if (subB) subB.textContent = `Kode slot B-1 s.d. B-30 • ${period.mainLabel}`;
 }
 
 async function refreshAllViewsAfterWeekChange() {
@@ -265,6 +378,7 @@ window.triggerNextWeek = async function() {
             await setDoc(doc(window.firebaseDb, "settings", "tilawah_config"), {
                 startDate: officialStartDate,
                 manualOffset: manualWeekOffset,
+                slotJuzOverrides: manualSlotJuzOverrides,
                 updatedAt: new Date().toISOString()
             }, { merge: true });
         }
@@ -291,6 +405,7 @@ window.triggerBackWeek = async function() {
             await setDoc(doc(window.firebaseDb, "settings", "tilawah_config"), {
                 startDate: officialStartDate,
                 manualOffset: manualWeekOffset,
+                slotJuzOverrides: manualSlotJuzOverrides,
                 updatedAt: new Date().toISOString()
             }, { merge: true });
         }
@@ -303,11 +418,15 @@ window.triggerBackWeek = async function() {
 };
 
 function adjustAdminButtonState() {
-    const adminActionContainer = document.getElementById("adminActionButtons");
-    if (!adminActionContainer) return;
+    const containers = [
+        document.getElementById("adminActionButtons"),
+        document.getElementById("adminActionButtonsB")
+    ].filter(Boolean);
 
-    if (isUserSuperAdmin) {
-        adminActionContainer.innerHTML = `
+    if (containers.length === 0) return;
+
+    const buttonMarkup = isUserSuperAdmin
+        ? `
             <button type="button" onclick="triggerBackWeek()" class="bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold text-xs px-3 py-2 rounded-lg transition shadow-md flex items-center gap-1.5" title="Mundur 1 Pekan">
                 <i class="fa-solid fa-backward-step"></i> Prev Week
             </button>
@@ -317,52 +436,152 @@ function adjustAdminButtonState() {
             <button type="button" onclick="openManageModal()" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs px-3 py-2 rounded-lg transition shadow-md flex items-center gap-1.5">
                 <i class="fa-solid fa-user-gear"></i> Kelola Peserta
             </button>
-        `;
-    } else {
-        adminActionContainer.innerHTML = `
-            <button type="button" id="btnManageParticipants" onclick="openManageModal()" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs px-4 py-2 rounded-lg transition shadow-md flex items-center gap-2">
+        `
+        : `
+            <button type="button" onclick="openManageModal()" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs px-4 py-2 rounded-lg transition shadow-md flex items-center gap-2">
                 <i class="fa-solid fa-user-plus"></i> Kelola Peserta
             </button>
         `;
-    }
+
+    containers.forEach((el) => {
+        el.innerHTML = buttonMarkup;
+        if (!el.classList.contains("hidden")) {
+            el.classList.remove("hidden");
+        }
+    });
 }
 
-function renderTab1Participants() {
-    const tbody = document.getElementById("participantTableBody");
-    if (!tbody) return;
+function applyGroupABlueprint(rawList) {
+    const sourceItems = (Array.isArray(rawList) ? rawList : [])
+        .filter(p => p && p.id && p.id !== "empty_slot");
 
-    const validParticipants = assignedParticipants.filter(p => p && p.id && p.id !== "empty_slot");
+    const usedIds = new Set();
+    const groupA = Array.from({ length: 30 }, (_, idx) => ({
+        id: "empty_slot",
+        slotCode: `A-${idx + 1}`,
+        namaPanggilan: "",
+        namaLengkap: "",
+        kelas: "-"
+    }));
 
-    if (validParticipants.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" class="p-8 text-center text-slate-500">Belum ada peserta tilawah yang terdaftar.</td></tr>`;
-        return;
+    // 1. Tempatkan peserta yang cocok dengan blueprint pada slot A-nya
+    INITIAL_GROUP_A_BLUEPRINT.forEach(bp => {
+        const idx = bp.slotNumber - 1;
+        if (idx < 0 || idx >= 30) return;
+
+        const found = sourceItems.find(item => {
+            if (usedIds.has(item.id)) return false;
+            const pName = String(item.namaPanggilan || "").trim().toUpperCase();
+            const fName = String(item.namaLengkap || "").trim().toUpperCase();
+            return bp.matchNames.some(m => pName === m || pName.includes(m) || fName.includes(m));
+        });
+
+        if (found) {
+            usedIds.add(found.id);
+            groupA[idx] = {
+                ...found,
+                slotCode: `A-${bp.slotNumber}`
+            };
+        }
+    });
+
+    // 2. Isi slot kosong yang tersisa di Kelompok A terlebih dahulu
+    const remaining = sourceItems.filter(item => !usedIds.has(item.id));
+    for (let i = 0; i < 30 && remaining.length > 0; i++) {
+        if (groupA[i].id === "empty_slot") {
+            const nextItem = remaining.shift();
+            usedIds.add(nextItem.id);
+            groupA[i] = {
+                ...nextItem,
+                slotCode: `A-${i + 1}`
+            };
+        }
     }
 
-    const userEmail = cachedAuthUser && cachedAuthUser.email ? cachedAuthUser.email.trim().toLowerCase() : "";
-    const isTilawahAdminEmail = userEmail === "denzrusmana060f08@gmail.com";
-    const isPowerUser = currentUserRole === "admin" || currentUserRole === "super_admin" || isTilawahAdminEmail;
+    // 3. Jika masih ada kelebihan peserta (> 30), masukkan ke Kelompok B
+    const groupB = [];
+    for (let idx = 0; idx < remaining.length; idx++) {
+        const slotNum = 31 + idx;
+        groupB.push({
+            ...remaining[idx],
+            slotCode: getSlotCodeByNumber(slotNum)
+        });
+    }
 
-    tbody.innerHTML = assignedParticipants.map((p, idx) => {
-        const isEmpty = !p || !p.id || p.id === "empty_slot";
-        if (isEmpty) return "";
+    return [...groupA, ...groupB];
+}
 
-        const assignedJuz = getJuzForIndex(idx);
-        const namaPanggilan = (p.namaPanggilan || "-").toUpperCase();
-        const namaLengkap = p.namaLengkap || "-";
+function buildGroupTableRowsHtml(startSlotNumber, endSlotNumber, canEditInline) {
+    const groupRows = [];
+
+    for (let slotNumber = startSlotNumber; slotNumber <= endSlotNumber; slotNumber++) {
+        const arrayIndex = slotNumberToIndex(slotNumber);
+        const slotCode = getSlotCodeByNumber(slotNumber);
+        const participant = assignedParticipants[arrayIndex];
+        const isEmpty = !participant || !participant.id || participant.id === "empty_slot";
+        const assignedJuz = getEffectiveJuzForSlot(slotNumber);
+
+        groupRows.push({
+            slotNumber,
+            arrayIndex,
+            slotCode,
+            participant,
+            isEmpty,
+            assignedJuz
+        });
+    }
+
+    groupRows.sort((a, b) => a.slotNumber - b.slotNumber);
+
+    return groupRows.map((row, idx) => {
+        const displayNo = idx + 1;
+        const resolvedCode = (row.participant && row.participant.slotCode) || row.slotCode;
+
+        if (row.isEmpty) {
+            return `
+                <tr class="hover:bg-slate-800/30 transition">
+                    <td class="p-3.5 font-bold text-slate-400">${displayNo}</td>
+                    <td class="p-3.5 font-bold text-amber-300/80">${resolvedCode}</td>
+                    <td class="p-3.5 text-slate-500">-</td>
+                    <td class="p-3.5 text-slate-500">-</td>
+                    <td class="p-3.5 text-center text-slate-500">-</td>
+                    <td class="p-3.5 text-center text-slate-500">-</td>
+                </tr>
+            `;
+        }
+
+        const namaPanggilan = (row.participant.namaPanggilan || "-").toUpperCase();
+        const namaLengkap = row.participant.namaLengkap || "-";
+        const juzOptionsHtml = Array.from({ length: 30 }, (_, i) => i + 1)
+            .map(j => `<option value="${j}" ${j === row.assignedJuz ? "selected" : ""}>JUZ ${j}</option>`)
+            .join("");
+
+        const juzFieldHtml = canEditInline
+            ? `
+                <select
+                    aria-label="Edit Juz ${namaPanggilan}"
+                    onchange="updateSlotJuzInline(${row.slotNumber}, ${row.arrayIndex}, this.value)"
+                    class="bg-slate-800 border border-amber-500/40 text-amber-300 text-xs font-bold px-2.5 py-1 rounded-lg cursor-pointer focus:border-amber-400 outline-none"
+                >
+                    ${juzOptionsHtml}
+                </select>
+            `
+            : `
+                <span class="bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-bold px-3 py-1 rounded-full">
+                    JUZ ${row.assignedJuz}
+                </span>
+            `;
 
         return `
             <tr class="hover:bg-slate-800/40 transition">
-                <td class="p-3.5 font-bold text-slate-400">${idx + 1}</td>
+                <td class="p-3.5 font-bold text-slate-400">${displayNo}</td>
+                <td class="p-3.5 font-bold text-amber-300/80">${resolvedCode}</td>
                 <td class="p-3.5 font-semibold text-amber-400">${namaPanggilan}</td>
                 <td class="p-3.5 text-slate-300">${namaLengkap}</td>
+                <td class="p-3.5 text-center">${juzFieldHtml}</td>
                 <td class="p-3.5 text-center">
-                    <span class="bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-bold px-3 py-1 rounded-full">
-                        JUZ ${assignedJuz}
-                    </span>
-                </td>
-                <td class="p-3.5 text-center">
-                    ${isPowerUser ? `
-                        <button type="button" onclick="removeParticipant(${idx})" class="text-rose-400 hover:text-rose-300 transition text-xs font-bold px-2 py-1 bg-rose-500/10 rounded-lg border border-rose-500/20">
+                    ${canEditInline ? `
+                        <button type="button" onclick="removeParticipant(${row.arrayIndex}, '${resolvedCode}')" class="text-rose-400 hover:text-rose-300 transition text-xs font-bold px-2 py-1 bg-rose-500/10 rounded-lg border border-rose-500/20">
                             <i class="fa-solid fa-trash mr-1"></i> Hapus
                         </button>
                     ` : `<span class="text-slate-500 text-xs">Peserta OWOJ</span>`}
@@ -370,6 +589,21 @@ function renderTab1Participants() {
             </tr>
         `;
     }).join("");
+}
+
+function renderTab1Participants() {
+    const tbodyA = document.getElementById("participantTableBodyA");
+    const tbodyB = document.getElementById("participantTableBodyB");
+    if (!tbodyA && !tbodyB) return;
+
+    const canEditInline = isPowerEditorUser(cachedAuthUser, currentUserRole);
+
+    if (tbodyA) {
+        tbodyA.innerHTML = buildGroupTableRowsHtml(1, 30, canEditInline);
+    }
+    if (tbodyB) {
+        tbodyB.innerHTML = buildGroupTableRowsHtml(31, 60, canEditInline);
+    }
 }
 
 function renderTilawahTabs() {
@@ -444,7 +678,9 @@ function renderActiveJuzCards(currentUser) {
         }
 
         const index = startIndex + idx;
-        const assignedJuz = getJuzForIndex(index);
+        const slotNumber = index + 1;
+        const slotCode = getSlotCodeByNumber(slotNumber);
+        const assignedJuz = getEffectiveJuzForSlot(slotNumber);
         const surahs = QURAN_JUZ_DATA[assignedJuz] || [];
         const assignedName = (participant.namaPanggilan || "ALUMNI").toUpperCase();
         const ownerId = participant.id || participant.uid || participant.userId || "";
@@ -462,9 +698,11 @@ function renderActiveJuzCards(currentUser) {
 
         const card = document.createElement("div");
         card.className = `juz-card-box ${bgClass} ${isUserAssigned ? "user-assigned" : ""}`;
-        card.id = `juz-btn-g${currentGroup}-${assignedJuz}`;
+        card.id = `juz-btn-g${currentGroup}-${assignedJuz}-slot-${slotCode}`;
         card.dataset.juz = String(assignedJuz);
         card.dataset.group = String(currentGroup);
+        card.dataset.slotNumber = String(slotNumber);
+        card.dataset.slotCode = slotCode;
         card.dataset.ownerId = String(ownerId);
         card.dataset.ownerName = assignedName;
 
@@ -477,7 +715,7 @@ function renderActiveJuzCards(currentUser) {
                 <div class="flex justify-between items-start mb-2">
                     <h2 class="text-3xl md:text-4xl font-extralight tracking-tight ${isUserAssigned ? "text-[#ffffff]" : "text-[#8698b5]"}">JUZ ${assignedJuz}</h2>
                     <div class="text-[12px] opacity-90 font-bold text-right ${metaColorClass}">
-                        <div>Nomor Urut: ${index + 1}</div>
+                        <div>Nomor Urut: ${slotCode} (${slotNumber})</div>
                         <div>Pekan ke-${period.pekanProgram} • ${period.monthWeekInfo.label}</div>
                     </div>
                 </div>
@@ -491,7 +729,7 @@ function renderActiveJuzCards(currentUser) {
             const initialTextColorClass = isUserAssigned ? "text-[#d1ae55]" : "text-[#8698b5]";
 
             htmlContent += `
-                <div class="surah-card relative overflow-hidden cursor-pointer transition p-3 rounded-xl bg-slate-800/80 border border-slate-700/60 hover:border-amber-400/50 flex items-center justify-between" onclick="handleSurahCardClick(${assignedJuz}, '${safeSurahName}', '${s.ayat}', this, '${ownerId}', '${assignedName}')">
+                <div class="surah-card relative overflow-hidden cursor-pointer transition p-3 rounded-xl bg-slate-800/80 border border-slate-700/60 hover:border-amber-400/50 flex items-center justify-between" onclick="handleSurahCardClick(${assignedJuz}, '${safeSurahName}', '${s.ayat}', this, '${ownerId}', '${assignedName}', '${slotCode}')">
                     <div class="flex items-center gap-3.5 w-full relative z-10">
                         <div class="surah-number font-black text-3xl shrink-0 text-center ${initialTextColorClass}">${s.no}</div>
                         <div class="surah-info truncate w-full">
@@ -531,11 +769,14 @@ function renderActiveJuzCards(currentUser) {
 // ==========================================
 // LOGIKA HAK AKSES KLIK SURAT, REPORT & FIREBASE
 // ==========================================
-window.handleSurahCardClick = function(assignedJuz, surahName, suratAyat, element, juzOwnerId, juzOwnerName) {
+window.handleSurahCardClick = function(assignedJuz, surahName, suratAyat, element, juzOwnerId, juzOwnerName, slotCode = "") {
     if (!cachedAuthUser) {
         alert("Silakan sign in terlebih dahulu.");
         return;
     }
+
+    const cardBox = element ? element.closest(".juz-card-box") : null;
+    const resolvedSlotCode = slotCode || (cardBox && cardBox.dataset ? cardBox.dataset.slotCode : "") || "";
 
     const currentUserId = String(cachedAuthUser.uid).trim();
     const targetOwnerId = String(juzOwnerId || "").trim();
@@ -558,16 +799,19 @@ window.handleSurahCardClick = function(assignedJuz, surahName, suratAyat, elemen
     if (isAlreadyCompleted) {
         const confirmUnreport = confirm("Apakah anda ingin menghapus report bacaan anda?");
         if (confirmUnreport) {
-            executeUnreportSurah(assignedJuz, surahName, element, targetOwnerId);
+            executeUnreportSurah(assignedJuz, surahName, element, targetOwnerId, resolvedSlotCode);
         }
         return;
     }
 
-    triggerReportTilawah(assignedJuz, surahName, suratAyat, element, targetOwnerId, juzOwnerName);
+    triggerReportTilawah(assignedJuz, surahName, suratAyat, element, targetOwnerId, juzOwnerName, resolvedSlotCode);
 };
 
-window.triggerReportTilawah = function(juzNumber, suratName, suratAyat, element, juzOwnerId = "", juzOwnerName = "") {
-    activeJuzTarget = { juzNumber, suratName, suratAyat, juzOwnerId, juzOwnerName };
+window.triggerReportTilawah = function(juzNumber, suratName, suratAyat, element, juzOwnerId = "", juzOwnerName = "", slotCode = "") {
+    const cardBox = element ? element.closest(".juz-card-box") : null;
+    const resolvedSlotCode = slotCode || (cardBox && cardBox.dataset ? cardBox.dataset.slotCode : "") || "";
+
+    activeJuzTarget = { juzNumber, suratName, suratAyat, juzOwnerId, juzOwnerName, slotCode: resolvedSlotCode };
     activeSuratElement = element;
 
     const modalText = document.getElementById("confirmReportText");
@@ -616,14 +860,15 @@ document.getElementById("yesReportBtn")?.addEventListener("click", async () => {
     const currentWeek = period.elapsed + 1;
     const juzNum = targetSnapshot.juzNumber;
     const suratName = targetSnapshot.suratName;
+    const slotCode = targetSnapshot.slotCode || "";
     const reporterUid = cachedAuthUser ? cachedAuthUser.uid : "";
-    const effectiveUserId = reporterUid || (activeJuzTarget && activeJuzTarget.juzOwnerId) || "";
-    const reporterName = (cachedNamaPanggilan || (activeJuzTarget && activeJuzTarget.juzOwnerName) || "ALUMNI").toUpperCase();
+    const effectiveUserId = reporterUid || targetSnapshot.juzOwnerId || "";
+    const reporterName = (cachedNamaPanggilan || targetSnapshot.juzOwnerName || "ALUMNI").toUpperCase();
 
     try {
         if (window.firebaseDb) {
             const { doc, setDoc } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js");
-            const docId = getReportDocId(currentWeek, juzNum, suratName, effectiveUserId);
+            const docId = getReportDocId(currentWeek, juzNum, suratName, effectiveUserId, slotCode);
             const reportRef = doc(window.firebaseDb, "tilawah_reports", docId);
 
             await setDoc(reportRef, {
@@ -634,6 +879,7 @@ document.getElementById("yesReportBtn")?.addEventListener("click", async () => {
                 periodeFinishMs: period.finishMs,
                 juz: juzNum,
                 surat: suratName,
+                slotCode: slotCode,
                 userId: effectiveUserId,
                 nama: reporterName,
                 tanggal: currentDate,
@@ -731,6 +977,7 @@ async function loadExistingReports(currentWeek) {
         if (timeBadge) {
             timeBadge.classList.add("hidden");
             timeBadge.style.borderColor = "";
+
             const dateTextEl = timeBadge.querySelector(".date-text");
             const timeTextEl = timeBadge.querySelector(".time-text");
             if (dateTextEl) dateTextEl.style.color = "";
@@ -741,11 +988,7 @@ async function loadExistingReports(currentWeek) {
     try {
         const { collection, getDocs, query, where } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js");
         const q = query(collection(window.firebaseDb, "tilawah_reports"), where("pekan", "==", targetWeek));
-        let querySnapshot = await getDocs(q);
-
-        if (querySnapshot.empty) {
-            querySnapshot = await getDocs(collection(window.firebaseDb, "tilawah_reports"));
-        }
+        const querySnapshot = await getDocs(q);
 
         const currentGroup = window.currentTilawahGroup || 1;
 
@@ -756,7 +999,9 @@ async function loadExistingReports(currentWeek) {
                 return;
             }
 
+            const slotCode = String(data.slotCode || "").trim();
             const juzCard =
+                (slotCode && document.getElementById(`juz-btn-g${currentGroup}-${data.juz}-slot-${slotCode}`)) ||
                 document.getElementById(`juz-btn-g${currentGroup}-${data.juz}`) ||
                 document.getElementById(`juz-btn-${data.juz}`);
             if (juzCard) {
@@ -1025,7 +1270,9 @@ window.openManageModal = function() {
 
         const selectEl = document.getElementById("alumniDbSelect");
         if (selectEl) {
-            const registeredIds = assignedParticipants.map(p => p && p.id).filter(Boolean);
+            const registeredIds = assignedParticipants
+                .map(p => p && p.id && p.id !== "empty_slot" ? p.id : null)
+                .filter(Boolean);
 
             const filteredAlumni = allDbAlumni.filter(a => {
                 const role = (a.role || "member").toLowerCase();
@@ -1048,7 +1295,7 @@ window.openManageModal = function() {
                 const isOccupied = existingParticipant && existingParticipant.id && existingParticipant.id !== "empty_slot";
 
                 if (!isOccupied) {
-                    optionsHtml += `<option value="${i}">Nomor Urut ${i}</option>`;
+                    optionsHtml += `<option value="${i}">Nomor Urut ${i} (${getSlotCodeByNumber(i)})</option>`;
                 }
             }
             slotSelectEl.innerHTML = optionsHtml;
@@ -1078,52 +1325,50 @@ window.saveParticipantToSlot = async function() {
     const selected = allDbAlumni.find(a => a.id === alumniId);
     if (!selected) return;
 
-    if (assignedParticipants.some(p => p && p.id && p.id === selected.id)) {
+    if (assignedParticipants.some(p => p && p.id && p.id === selected.id && p.id !== "empty_slot")) {
         alert("Alumni ini sudah terdaftar sebagai peserta OWOJ!");
         return;
     }
 
-    const newParticipantData = {
+    const manualSlot = slotSelectEl && slotSelectEl.value ? parseInt(slotSelectEl.value, 10) : null;
+    let targetIndex = -1;
+
+    if (manualSlot && manualSlot >= 1 && manualSlot <= 60) {
+        targetIndex = manualSlot - 1;
+    } else {
+        targetIndex = assignedParticipants.findIndex(p => !p || !p.id || p.id === "empty_slot");
+        if (targetIndex === -1) {
+            targetIndex = assignedParticipants.length;
+        }
+    }
+
+    while (assignedParticipants.length <= targetIndex) {
+        const fillerIdx = assignedParticipants.length;
+        assignedParticipants.push({
+            id: "empty_slot",
+            slotCode: getSlotCodeByIndex(fillerIdx),
+            namaPanggilan: "",
+            namaLengkap: "",
+            kelas: "-"
+        });
+    }
+
+    const resolvedSlotNumber = targetIndex + 1;
+    const resolvedSlotCode = getSlotCodeByNumber(resolvedSlotNumber);
+
+    assignedParticipants[targetIndex] = {
         id: selected.id,
+        slotCode: resolvedSlotCode,
         namaPanggilan: selected.namaPanggilan || selected.namaLengkap || "Alumni",
         namaLengkap: selected.namaLengkap || "-",
         kelas: selected.kelas || "-"
     };
 
-    const manualSlot = slotSelectEl && slotSelectEl.value ? parseInt(slotSelectEl.value, 10) : null;
-
-    if (manualSlot && manualSlot >= 1 && manualSlot <= 60) {
-        const targetIndex = manualSlot - 1;
-        while (assignedParticipants.length < targetIndex) {
-            assignedParticipants.push({
-                id: "empty_slot",
-                namaPanggilan: "",
-                namaLengkap: "",
-                kelas: "-"
-            });
-        }
-        assignedParticipants[targetIndex] = newParticipantData;
-    } else {
-        assignedParticipants.push(newParticipantData);
-    }
-
-    const cleanParticipants = assignedParticipants.map(p => {
-        if (!p || !p.id) {
-            return {
-                id: "empty_slot",
-                namaPanggilan: "",
-                namaLengkap: "",
-                kelas: "-"
-            };
-        }
-        return p;
-    });
-
     try {
         if (window.firebaseDb) {
             const { doc, setDoc } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js");
             await setDoc(doc(window.firebaseDb, "settings", "tilawah_participants"), {
-                participants: cleanParticipants,
+                participants: assignedParticipants,
                 updatedAt: new Date().toISOString()
             });
             alert("Peserta OWOJ berhasil disimpan!");
@@ -1146,15 +1391,36 @@ window.saveParticipantToSlot = async function() {
     await renderMonthlyRecapTable();
 };
 
-window.removeParticipant = async function(index) {
-    if (!confirm(`Yakin ingin menghapus peserta nomor urut ${index + 1}?`)) return;
-
-    assignedParticipants.splice(index, 1);
-
-    const totalGroups = Math.max(1, Math.ceil(assignedParticipants.length / 30));
-    if ((window.currentTilawahGroup || 1) > totalGroups) {
-        window.currentTilawahGroup = totalGroups;
+window.removeParticipant = async function(slotIndex, targetSlotCode = "") {
+    if (!isPowerEditorUser(cachedAuthUser, currentUserRole)) {
+        alert("Akses ditolak. Fitur ini khusus Admin, Nana Ocin, dan Super Admin.");
+        return;
     }
+
+    let resolvedIndex = slotIndex;
+    if (targetSlotCode) {
+        const matchedIdx = assignedParticipants.findIndex((p, idx) => {
+            const pCode = String(p?.slotCode || getSlotCodeByIndex(idx) || "").trim().toUpperCase();
+            return pCode === String(targetSlotCode).trim().toUpperCase();
+        });
+        if (matchedIdx !== -1) {
+            resolvedIndex = matchedIdx;
+        }
+    }
+
+    const slotCodeLabel = targetSlotCode || getSlotCodeByIndex(resolvedIndex);
+    const targetParticipant = assignedParticipants[resolvedIndex];
+    const nama = targetParticipant && targetParticipant.namaPanggilan ? targetParticipant.namaPanggilan : "peserta ini";
+
+    if (!confirm(`Hapus ${nama} (${slotCodeLabel}) dari daftar peserta Tilawah?`)) return;
+
+    assignedParticipants[resolvedIndex] = {
+        id: "empty_slot",
+        slotCode: slotCodeLabel,
+        namaPanggilan: "",
+        namaLengkap: "",
+        kelas: "-"
+    };
 
     try {
         if (window.firebaseDb) {
@@ -1163,22 +1429,21 @@ window.removeParticipant = async function(index) {
                 participants: assignedParticipants,
                 updatedAt: new Date().toISOString()
             });
-            alert("Peserta berhasil dihapus.");
         }
+
+        renderTab1Participants();
+        renderTilawahTabs();
+        renderActiveJuzCards(cachedAuthUser);
+
+        const period = getActivePeriodRange();
+        await loadExistingReports(period.elapsed + 1);
+        renderColorWheel();
+        await updateYearlyStats();
+        await renderMonthlyRecapTable();
     } catch (err) {
-        console.error("Gagal memperbarui database:", err);
-        alert("Gagal menghapus peserta.");
+        console.error("Gagal menghapus peserta:", err);
+        alert("Gagal menghapus peserta dari database.");
     }
-
-    renderTab1Participants();
-    renderTilawahTabs();
-    renderActiveJuzCards(cachedAuthUser);
-
-    const period = getActivePeriodRange();
-    await loadExistingReports(period.elapsed + 1);
-    renderColorWheel();
-    await updateYearlyStats();
-    await renderMonthlyRecapTable();
 };
 
 // ==========================================
@@ -1465,7 +1730,7 @@ async function updateYearlyStats() {
 // ==========================================
 // FUNGSI PEMBATALAN LAPORAN (UNREPORT) & HAPUS DARI FIREBASE
 // ==========================================
-async function executeUnreportSurah(juzNumber, suratName, element, ownerId = "") {
+async function executeUnreportSurah(juzNumber, suratName, element, ownerId = "", slotCode = "") {
     element.classList.remove("completed", "completed-gold", "completed-dark");
     element.style.backgroundColor = "";
     element.style.borderColor = "";
@@ -1502,17 +1767,22 @@ async function executeUnreportSurah(juzNumber, suratName, element, ownerId = "")
         if (progressBar) progressBar.style.width = `${percent}%`;
     }
 
+    const resolvedSlotCode = slotCode || (cardBox && cardBox.dataset ? cardBox.dataset.slotCode : "") || "";
     const period = getActivePeriodRange();
     const currentWeek = period.elapsed + 1;
-    const effectiveUid = (cachedAuthUser && cachedAuthUser.uid) || "";
+    const effectiveUid = (cachedAuthUser && cachedAuthUser.uid) || ownerId || "";
 
     try {
         if (window.firebaseDb) {
             const { doc, deleteDoc } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js");
+            const docIdWithSlotAndUser = getReportDocId(currentWeek, juzNumber, suratName, effectiveUid, resolvedSlotCode);
             const docIdWithUser = getReportDocId(currentWeek, juzNumber, suratName, effectiveUid);
             const legacyDocId = getReportDocId(currentWeek, juzNumber, suratName, "");
 
-            await deleteDoc(doc(window.firebaseDb, "tilawah_reports", docIdWithUser)).catch(() => {});
+            await deleteDoc(doc(window.firebaseDb, "tilawah_reports", docIdWithSlotAndUser)).catch(() => {});
+            if (docIdWithSlotAndUser !== docIdWithUser) {
+                await deleteDoc(doc(window.firebaseDb, "tilawah_reports", docIdWithUser)).catch(() => {});
+            }
             if (docIdWithUser !== legacyDocId) {
                 await deleteDoc(doc(window.firebaseDb, "tilawah_reports", legacyDocId)).catch(() => {});
             }
@@ -1572,12 +1842,16 @@ window.initTilawahDashboard = async function(user, namaPanggilan) {
 
             officialStartDate = DEFAULT_START_ISO;
             manualWeekOffset = 0;
+            manualSlotJuzOverrides = {};
 
             const configDoc = await getDoc(doc(window.firebaseDb, "settings", "tilawah_config"));
             if (configDoc.exists()) {
                 const cfg = configDoc.data();
                 if (typeof cfg.manualOffset === "number") {
                     manualWeekOffset = cfg.manualOffset;
+                }
+                if (cfg.slotJuzOverrides && typeof cfg.slotJuzOverrides === "object") {
+                    manualSlotJuzOverrides = { ...cfg.slotJuzOverrides };
                 }
             }
             adjustAdminButtonState();
@@ -1588,7 +1862,27 @@ window.initTilawahDashboard = async function(user, namaPanggilan) {
 
             const tilawahDoc = await getDoc(doc(window.firebaseDb, "settings", "tilawah_participants"));
             if (tilawahDoc.exists() && Array.isArray(tilawahDoc.data().participants)) {
-                assignedParticipants = tilawahDoc.data().participants;
+                const normalized = tilawahDoc.data().participants.map((p, idx) => {
+                    const code = getSlotCodeByIndex(idx);
+                    if (!p || !p.id) {
+                        return {
+                            id: "empty_slot",
+                            slotCode: code,
+                            namaPanggilan: "",
+                            namaLengkap: "",
+                            kelas: "-"
+                        };
+                    }
+                    return {
+                        ...p,
+                        slotCode: p.slotCode || code
+                    };
+                });
+
+                assignedParticipants = applyGroupABlueprint(normalized).map((p, idx) => ({
+                    ...p,
+                    slotCode: getSlotCodeByIndex(idx)
+                }));
             }
         }
     } catch (err) {
